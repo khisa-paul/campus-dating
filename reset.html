@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Reset Password</title>
+</head>
+<body>
+  <h1>Reset Password</h1>
+  <form id="resetForm">
+    <input type="password" name="password" placeholder="New Password" required>
+    <button type="submit">Reset</button>
+  </form>
+
+  <script>
+    const API = "http://localhost:5000";
+    document.getElementById("resetForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get("token");
+      const res = await fetch(`${API}/api/resetPassword`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password: e.target.password.value })
+      });
+      const data = await res.json();
+      alert(data.message || data.error);
+    });
+  </script>
+</body>
+</html>

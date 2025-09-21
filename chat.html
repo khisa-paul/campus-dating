@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CampusDating Chat</title>
+</head>
+<body>
+  <h1>Private Chat 💬</h1>
+  <form id="chatForm">
+    <input type="text" name="sender" placeholder="Your User ID" required>
+    <input type="text" name="receiver" placeholder="Receiver User ID" required>
+    <input type="text" name="text" placeholder="Message" required>
+    <button type="submit">Send</button>
+  </form>
+  <div id="chatBox"></div>
+
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script>
+    const API = "http://localhost:5000";
+    const socket = io(API);
+
+    document.getElementById("chatForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const sender = e.target.sender.value;
+      const receiver = e.target.receiver.value;
+      const text = e.target.text.value;
+
+      socket.emit("privateMessage", { sender, receiver, text });
+      e.target.text.value = "";
+    });
+
+    socket.on("connect", () => console.log("Connected to chat"));
+
+    // Example: listen to messages for user "123"
+    socket.on("chat-123", (msg) => {
+      document.getElementById("chatBox").innerHTML += `<p>${msg.text}</p>`;
+    });
+  </script>
+</body>
+</html>
