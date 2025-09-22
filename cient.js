@@ -1,4 +1,4 @@
-const API = "https://campus-dating-backend-1.onrender.com";
+const API = "https://campus-dating-backend-10.onrender.com";
 document.getElementById("registerForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target).entries());
@@ -35,4 +35,5 @@ async function loadPosts() {
   `).join("");
 }
 loadPosts();
+
 
