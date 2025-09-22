@@ -4,15 +4,72 @@
   <meta charset="UTF-8">
   <title>CampusDating Chat</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-    h1 { text-align: center; color: #004080; }
-    #chatBox { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-top: 20px; background: #f9f9f9; }
+    /* Base styling */
+    body {
+      font-family: Arial, sans-serif;
+      background: #fdf6f9;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #004080;
+    }
+
+    /* Form styling */
+    form {
+      background: #fff;
+      padding: 15px;
+      border-radius: 10px;
+      display: inline-block;
+      margin: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    input, textarea {
+      display: block;
+      margin: 8px auto;
+      padding: 8px;
+      width: 80%;
+      font-size: 16px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      background: hotpink;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    button:hover {
+      background: deeppink;
+    }
+
+    /* Chat box */
+    #chatBox {
+      margin-top: 20px;
+      background: #fff;
+      border-radius: 10px;
+      padding: 10px;
+      width: 90%;
+      max-width: 600px;
+      height: 300px;
+      overflow-y: scroll;
+      margin-left: auto;
+      margin-right: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      text-align: left;
+    }
+
     p { margin: 5px 0; }
+
     .sender { color: #004080; font-weight: bold; }
-    form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
-    input { padding: 10px; font-size: 16px; }
-    button { padding: 10px; font-size: 16px; background: #004080; color: white; border: none; cursor: pointer; }
-    button:hover { background: #0066cc; }
   </style>
 </head>
 <body>
@@ -27,7 +84,7 @@
 
   <div id="chatBox"></div>
 
-  <!-- Load Socket.IO from your live backend -->
+  <!-- Socket.IO -->
   <script src="https://campus-dating-backend-10.onrender.com/socket.io/socket.io.js"></script>
   <script>
     const API = "https://campus-dating-backend-10.onrender.com";
