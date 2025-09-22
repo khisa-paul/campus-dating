@@ -3,29 +3,53 @@
 <head>
   <meta charset="UTF-8">
   <title>Reset Password</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 50px; max-width: 400px; margin: auto; background: #f0f8ff; }
+    h1 { text-align: center; color: #004080; }
+    form { display: flex; flex-direction: column; gap: 15px; margin-top: 30px; }
+    input { padding: 10px; font-size: 16px; }
+    button { padding: 10px; font-size: 16px; background: #004080; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0066cc; }
+  </style>
 </head>
 <body>
-  <h1>Reset Password</h1>
+  <h1>Reset Password 🔑</h1>
   <form id="resetForm">
     <input type="password" name="password" placeholder="New Password" required>
     <button type="submit">Reset</button>
   </form>
 
   <script>
-  const API = "https://campus-dating-backend-1.onrender.com";
-  document.getElementById("resetForm").addEventListener("submit", async (e) => {
+    // Updated API to latest deployed backend
+    const API = "https://campus-dating-backend-10.onrender.com";
+
+    const form = document.getElementById("resetForm");
+    form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const urlParams = new URLSearchParams(window.location.search);
       const token = urlParams.get("token");
-      const res = await fetch(`${API}/api/resetPassword`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password: e.target.password.value })
-      });
-      const data = await res.json();
-      alert(data.message || data.error);
+
+      if (!token) {
+        alert("Invalid or missing reset token.");
+        return;
+      }
+
+      const password = e.target.password.value;
+
+      try {
+        const res = await fetch(`${API}/api/resetPassword`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, password })
+        });
+        const data = await res.json();
+        alert(data.message || data.error);
+        if (data.message) form.reset();
+      } catch (err) {
+        console.error(err);
+        alert("An error occurred. Try again.");
+      }
     });
   </script>
 </body>
 </html>
-
