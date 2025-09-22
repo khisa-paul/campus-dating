@@ -3,39 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <title>CampusDating Chat</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    h1 { text-align: center; color: #004080; }
+    #chatBox { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-top: 20px; background: #f9f9f9; }
+    p { margin: 5px 0; }
+    .sender { color: #004080; font-weight: bold; }
+    form { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+    input { padding: 10px; font-size: 16px; }
+    button { padding: 10px; font-size: 16px; background: #004080; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0066cc; }
+  </style>
 </head>
 <body>
-  <h1>Private Chat 💬</h1>
+  <h1>CampusDating Private Chat 💬</h1>
+
   <form id="chatForm">
     <input type="text" name="sender" placeholder="Your User ID" required>
     <input type="text" name="receiver" placeholder="Receiver User ID" required>
     <input type="text" name="text" placeholder="Message" required>
     <button type="submit">Send</button>
   </form>
+
   <div id="chatBox"></div>
 
-  <script src="https://campus-dating-backend-1.onrender.com/socket.io/socket.io.js"></script>
-   <script>
-    const API = "http://localhost:5000";
+  <!-- Load Socket.IO from your live backend -->
+  <script src="https://campus-dating-backend-10.onrender.com/socket.io/socket.io.js"></script>
+  <script>
+    const API = "https://campus-dating-backend-10.onrender.com";
     const socket = io(API);
 
-    document.getElementById("chatForm").addEventListener("submit", (e) => {
+    const chatBox = document.getElementById("chatBox");
+    const chatForm = document.getElementById("chatForm");
+    let currentUser = "";
+
+    chatForm.addEventListener("submit", (e) => {
       e.preventDefault();
-      const sender = e.target.sender.value;
-      const receiver = e.target.receiver.value;
-      const text = e.target.text.value;
+      const sender = chatForm.sender.value.trim();
+      const receiver = chatForm.receiver.value.trim();
+      const text = chatForm.text.value.trim();
+      if (!sender || !receiver || !text) return;
+
+      currentUser = sender;
 
       socket.emit("privateMessage", { sender, receiver, text });
-      e.target.text.value = "";
+      chatForm.text.value = "";
     });
 
-    socket.on("connect", () => console.log("Connected to chat"));
+    socket.on("connect", () => console.log("Connected to chat backend"));
 
-    // Example: listen to messages for user "123"
-    socket.on("chat-123", (msg) => {
-      document.getElementById("chatBox").innerHTML += `<p>${msg.text}</p>`;
+    // Listen to messages for current user
+    chatForm.sender.addEventListener("change", () => {
+      currentUser = chatForm.sender.value.trim();
+      chatBox.innerHTML = ""; // clear old messages
+
+      // Remove previous listener if any
+      socket.off(`chat-${currentUser}`);
+
+      // Listen for new messages
+      socket.on(`chat-${currentUser}`, (msg) => {
+        chatBox.innerHTML += `<p><span class="sender">${msg.sender}:</span> ${msg.text}</p>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
     });
   </script>
 </body>
 </html>
-
