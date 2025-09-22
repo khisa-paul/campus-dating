@@ -1,128 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>CampusDating Chat</title>
-  <style>
-    /* Base styling */
-    body {
-      font-family: Arial, sans-serif;
-      background: #fdf6f9;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-    }
+<!-- Add a badge to contacts and typing indicator -->
+<style>
+  .badge {
+    background: hotpink;
+    color: white;
+    border-radius: 50%;
+    padding: 2px 6px;
+    font-size: 12px;
+    margin-left: 5px;
+  }
+  #typingIndicator { font-style: italic; color: #666; margin-bottom:5px; }
+  .message p:hover { background:#f0f0f0; cursor:pointer; }
+</style>
 
-    h1 {
-      color: #004080;
-    }
+<div id="typingIndicator"></div>
 
-    /* Form styling */
-    form {
-      background: #fff;
-      padding: 15px;
-      border-radius: 10px;
-      display: inline-block;
-      margin: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
+<script>
+let unreadCounts = {};
+const typingIndicatorDiv = document.getElementById("typingIndicator");
 
-    input, textarea {
-      display: block;
-      margin: 8px auto;
-      padding: 8px;
-      width: 80%;
-      font-size: 16px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-    }
+// Show typing indicator
+socket.on("typing", ({ sender, receiver }) => {
+  if(sender === activeContact && receiver === currentUser) {
+    typingIndicatorDiv.textContent = `${sender} is typing...`;
+    setTimeout(() => { typingIndicatorDiv.textContent = ""; }, 2000);
+  }
+});
 
-    button {
-      background: hotpink;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-    }
+// Emit typing event
+messageInput.addEventListener("input", () => {
+  if(activeContact) {
+    socket.emit("typing", { sender: currentUser, receiver: activeContact });
+  }
+});
 
-    button:hover {
-      background: deeppink;
-    }
+// Handle unread counts
+socket.on("chat-*", (msg) => {
+  if(msg.receiver === currentUser && msg.sender !== activeContact) {
+    unreadCounts[msg.sender] = (unreadCounts[msg.sender] || 0) + 1;
+    loadContacts();
+  }
+});
 
-    /* Chat box */
-    #chatBox {
-      margin-top: 20px;
-      background: #fff;
-      border-radius: 10px;
-      padding: 10px;
-      width: 90%;
-      max-width: 600px;
-      height: 300px;
-      overflow-y: scroll;
-      margin-left: auto;
-      margin-right: auto;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      text-align: left;
-    }
-
-    p { margin: 5px 0; }
-
-    .sender { color: #004080; font-weight: bold; }
-  </style>
-</head>
-<body>
-  <h1>CampusDating Private Chat 💬</h1>
-
-  <form id="chatForm">
-    <input type="text" name="sender" placeholder="Your User ID" required>
-    <input type="text" name="receiver" placeholder="Receiver User ID" required>
-    <input type="text" name="text" placeholder="Message" required>
-    <button type="submit">Send</button>
-  </form>
-
-  <div id="chatBox"></div>
-
-  <!-- Socket.IO -->
-  <script src="https://campus-dating-backend-10.onrender.com/socket.io/socket.io.js"></script>
-  <script>
-    const API = "https://campus-dating-backend-10.onrender.com";
-    const socket = io(API);
-
-    const chatBox = document.getElementById("chatBox");
-    const chatForm = document.getElementById("chatForm");
-    let currentUser = "";
-
-    chatForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const sender = chatForm.sender.value.trim();
-      const receiver = chatForm.receiver.value.trim();
-      const text = chatForm.text.value.trim();
-      if (!sender || !receiver || !text) return;
-
-      currentUser = sender;
-
-      socket.emit("privateMessage", { sender, receiver, text });
-      chatForm.text.value = "";
-    });
-
-    socket.on("connect", () => console.log("Connected to chat backend"));
-
-    // Listen to messages for current user
-    chatForm.sender.addEventListener("change", () => {
-      currentUser = chatForm.sender.value.trim();
-      chatBox.innerHTML = ""; // clear old messages
-
-      // Remove previous listener if any
-      socket.off(`chat-${currentUser}`);
-
-      // Listen for new messages
-      socket.on(`chat-${currentUser}`, (msg) => {
-        chatBox.innerHTML += `<p><span class="sender">${msg.sender}:</span> ${msg.text}</p>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
+// Display unread badge
+function loadContacts() {
+  fetch(`${API}/api/contacts/${currentUser}`)
+    .then(res => res.json())
+    .then(contacts => {
+      contactsDiv.innerHTML = "";
+      contacts.forEach(contact => {
+        const div = document.createElement("div");
+        div.textContent = contact;
+        if(unreadCounts[contact]) {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = unreadCounts[contact];
+          div.appendChild(badge);
+        }
+        div.onclick = () => { selectContact(contact); unreadCounts[contact]=0; };
+        if(contact === activeContact) div.classList.add("active");
+        contactsDiv.appendChild(div);
       });
     });
-  </script>
-</body>
-</html>
+}
+
+// Delete message example (click message to delete)
+chatBox.addEventListener("click", async (e) => {
+  const msgId = e.target.dataset.id;
+  if(!msgId) return;
+  if(confirm("Delete this message?")) {
+    await fetch(`${API}/api/message/${msgId}/${currentUser}`, { method: "DELETE" });
+    e.target.remove();
+  }
+});
+</script>
