@@ -1,5 +1,4 @@
-const API = "http://localhost:5000";
-
+const API = "https://campus-dating-backend-1.onrender.com";
 document.getElementById("registerForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(e.target).entries());
@@ -36,3 +35,4 @@ async function loadPosts() {
   `).join("");
 }
 loadPosts();
+
