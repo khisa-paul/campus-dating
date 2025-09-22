@@ -1,75 +1,38 @@
-<!-- Add a badge to contacts and typing indicator -->
-<style>
-  .badge {
-    background: hotpink;
-    color: white;
-    border-radius: 50%;
-    padding: 2px 6px;
-    font-size: 12px;
-    margin-left: 5px;
-  }
-  #typingIndicator { font-style: italic; color: #666; margin-bottom:5px; }
-  .message p:hover { background:#f0f0f0; cursor:pointer; }
-</style>
-
-<div id="typingIndicator"></div>
-
-<script>
-let unreadCounts = {};
-const typingIndicatorDiv = document.getElementById("typingIndicator");
-
-// Show typing indicator
-socket.on("typing", ({ sender, receiver }) => {
-  if(sender === activeContact && receiver === currentUser) {
-    typingIndicatorDiv.textContent = `${sender} is typing...`;
-    setTimeout(() => { typingIndicatorDiv.textContent = ""; }, 2000);
-  }
+socket.on("update-users", (users) => {
+  // users is an object: { alice: "online", bob: "last seen ..." }
+  loadContacts(users);
 });
 
-// Emit typing event
-messageInput.addEventListener("input", () => {
-  if(activeContact) {
-    socket.emit("typing", { sender: currentUser, receiver: activeContact });
-  }
-});
-
-// Handle unread counts
-socket.on("chat-*", (msg) => {
-  if(msg.receiver === currentUser && msg.sender !== activeContact) {
-    unreadCounts[msg.sender] = (unreadCounts[msg.sender] || 0) + 1;
-    loadContacts();
-  }
-});
-
-// Display unread badge
-function loadContacts() {
+function loadContacts(userStatuses = {}) {
   fetch(`${API}/api/contacts/${currentUser}`)
     .then(res => res.json())
     .then(contacts => {
       contactsDiv.innerHTML = "";
       contacts.forEach(contact => {
         const div = document.createElement("div");
-        div.textContent = contact;
-        if(unreadCounts[contact]) {
+        div.innerHTML = `
+          <span>${contact}</span>
+          <small style="color:gray; margin-left:8px;">
+            ${userStatuses[contact] || "offline"}
+          </small>
+        `;
+
+        if (unreadCounts[contact]) {
           const badge = document.createElement("span");
           badge.className = "badge";
           badge.textContent = unreadCounts[contact];
           div.appendChild(badge);
         }
-        div.onclick = () => { selectContact(contact); unreadCounts[contact]=0; };
-        if(contact === activeContact) div.classList.add("active");
+
+        div.onclick = () => {
+          selectContact(contact);
+          unreadCounts[contact] = 0;
+          loadContacts(userStatuses);
+        };
+
+        if (contact === activeContact) div.classList.add("active");
         contactsDiv.appendChild(div);
       });
     });
 }
 
-// Delete message example (click message to delete)
-chatBox.addEventListener("click", async (e) => {
-  const msgId = e.target.dataset.id;
-  if(!msgId) return;
-  if(confirm("Delete this message?")) {
-    await fetch(`${API}/api/message/${msgId}/${currentUser}`, { method: "DELETE" });
-    e.target.remove();
-  }
-});
-</script>
