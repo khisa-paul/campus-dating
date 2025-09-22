@@ -1,53 +1,170 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>CampusDating Chat</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Campus Dating Chat</title>
   <style>
-    body { font-family: Arial; padding: 20px; }
-    #chatBox { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-top: 10px; }
-    p { margin: 5px 0; }
+    body { font-family: Arial, sans-serif; }
+    .badge {
+      background: crimson;
+      color: white;
+      border-radius: 50%;
+      padding: 2px 8px;
+      font-size: 11px;
+      margin-left: 8px;
+      display: inline-block;
+      min-width: 18px;
+      text-align: center;
+    }
+    #typingIndicator { font-style: italic; color: #666; margin-bottom:5px; }
+    .message p:hover { background:#f0f0f0; cursor:pointer; }
+    .active { background:#e0e0ff; }
+    .contact { padding:5px; border-bottom:1px solid #ddd; cursor:pointer; }
   </style>
 </head>
 <body>
-  <h1>Private Chat 💬</h1>
-  <form id="chatForm">
-    <input type="text" name="sender" placeholder="Your User ID" required>
-    <input type="text" name="receiver" placeholder="Receiver User ID" required>
-    <input type="text" name="text" placeholder="Message" required>
-    <button type="submit">Send</button>
-  </form>
+  <h2>Campus Dating Chat</h2>
+
+  <div id="typingIndicator"></div>
+  <div id="contacts"></div>
   <div id="chatBox"></div>
 
-  <!-- Socket.IO from your live backend -->
-  <script src="https://campus-dating-backend-10.onrender.com/socket.io/socket.io.js"></script>
+  <input id="messageInput" placeholder="Type a message..."/>
+  <button id="sendBtn">Send</button>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-    const API = "https://campus-dating-backend-10.onrender.com";
-    const socket = io(API);
+  // ==============================
+  // CONFIG
+  // ==============================
+  const API = "https://campus-dating-backend-10.onrender.com";
+  const socket = io(API);
 
-    const chatBox = document.getElementById("chatBox");
-    const chatForm = document.getElementById("chatForm");
+  // Replace with real logged-in user
+  const currentUser = "alice";  
+  let activeContact = null;
+  let unreadCounts = {};
+  let typingTimeout;
 
-    chatForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const sender = e.target.sender.value;
-      const receiver = e.target.receiver.value;
-      const text = e.target.text.value;
+  const contactsDiv = document.getElementById("contacts");
+  const chatBox = document.getElementById("chatBox");
+  const messageInput = document.getElementById("messageInput");
+  const typingIndicatorDiv = document.getElementById("typingIndicator");
+  const sendBtn = document.getElementById("sendBtn");
 
-      socket.emit("privateMessage", { sender, receiver, text });
-      e.target.text.value = "";
-    });
+  // ==============================
+  // SOCKET EVENTS
+  // ==============================
+  socket.emit("user-online", currentUser);
 
-    socket.on("connect", () => console.log("Connected to chat"));
+  socket.on("update-users", (users) => {
+    loadContacts(users);
+  });
 
-    // Listen for messages addressed to you
-    chatForm.sender.addEventListener("change", () => {
-      const user = chatForm.sender.value;
-      socket.on(`chat-${user}`, (msg) => {
-        chatBox.innerHTML += `<p><strong>${msg.sender}:</strong> ${msg.text}</p>`;
-        chatBox.scrollTop = chatBox.scrollHeight;
+  // Typing indicator
+  socket.on("typing", ({ sender, receiver }) => {
+    if(sender === activeContact && receiver === currentUser) {
+      typingIndicatorDiv.textContent = `${sender} is typing...`;
+      clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => { typingIndicatorDiv.textContent = ""; }, 2000);
+    }
+  });
+
+  // Handle incoming messages
+  socket.on("chat-message", (msg) => {
+    if(msg.receiver === currentUser) {
+      if (msg.sender === activeContact) {
+        renderMessage(msg);
+      } else {
+        unreadCounts[msg.sender] = (unreadCounts[msg.sender] || 0) + 1;
+        loadContacts();
+      }
+    }
+  });
+
+  // ==============================
+  // EVENTS
+  // ==============================
+  messageInput.addEventListener("input", () => {
+    if(activeContact) {
+      socket.emit("typing", { sender: currentUser, receiver: activeContact });
+    }
+  });
+
+  sendBtn.addEventListener("click", () => {
+    if(activeContact && messageInput.value.trim()) {
+      const msg = { sender: currentUser, receiver: activeContact, text: messageInput.value };
+      socket.emit("chat-message", msg);
+      renderMessage(msg);
+      messageInput.value = "";
+    }
+  });
+
+  // Delete message
+  chatBox.addEventListener("click", async (e) => {
+    const msgId = e.target.dataset.id;
+    if(!msgId) return;
+    if(confirm("Delete this message?")) {
+      await fetch(`${API}/api/message/${msgId}/${currentUser}`, { method: "DELETE" });
+      e.target.remove();
+    }
+  });
+
+  // ==============================
+  // FUNCTIONS
+  // ==============================
+  function loadContacts(userStatuses = {}) {
+    fetch(`${API}/api/contacts/${currentUser}`)
+      .then(res => res.json())
+      .then(contacts => {
+        contactsDiv.innerHTML = "";
+        contacts.forEach(contact => {
+          const div = document.createElement("div");
+          div.className = "contact";
+          div.innerHTML = `
+            <span>${contact}</span>
+            <small style="color:gray; margin-left:8px;">
+              ${userStatuses[contact] || "offline"}
+            </small>
+          `;
+          if(unreadCounts[contact]) {
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.textContent = unreadCounts[contact];
+            div.appendChild(badge);
+          }
+          div.onclick = () => {
+            selectContact(contact, userStatuses);
+            unreadCounts[contact] = 0;
+            loadContacts(userStatuses);
+          };
+          if(contact === activeContact) div.classList.add("active");
+          contactsDiv.appendChild(div);
+        });
       });
-    });
+  }
+
+  function selectContact(contact, userStatuses={}) {
+    activeContact = contact;
+    chatBox.innerHTML = "";
+    fetch(`${API}/api/messages/${currentUser}/${contact}`)
+      .then(res => res.json())
+      .then(messages => {
+        chatBox.innerHTML = "";
+        messages.forEach(msg => renderMessage(msg));
+      });
+  }
+
+  function renderMessage(msg) {
+    const p = document.createElement("p");
+    p.dataset.id = msg._id || ""; 
+    p.textContent = `${msg.sender}: ${msg.text}`;
+    chatBox.appendChild(p);
+  }
+
+  // Initial load
+  loadContacts();
   </script>
 </body>
 </html>
