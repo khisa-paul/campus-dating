@@ -12,8 +12,8 @@
   </form>
 
   <script>
-    const API = "http://localhost:5000";
-    document.getElementById("resetForm").addEventListener("submit", async (e) => {
+  const API = "https://campus-dating-backend-1.onrender.com";
+  document.getElementById("resetForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const urlParams = new URLSearchParams(window.location.search);
       const token = urlParams.get("token");
@@ -28,3 +28,4 @@
   </script>
 </body>
 </html>
+
