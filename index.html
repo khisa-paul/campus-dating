@@ -1,170 +1,598 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Campus Dating Chat</title>
-  <style>
-    body { font-family: Arial, sans-serif; }
-    .badge {
-      background: crimson;
-      color: white;
-      border-radius: 50%;
-      padding: 2px 8px;
-      font-size: 11px;
-      margin-left: 8px;
-      display: inline-block;
-      min-width: 18px;
-      text-align: center;
-    }
-    #typingIndicator { font-style: italic; color: #666; margin-bottom:5px; }
-    .message p:hover { background:#f0f0f0; cursor:pointer; }
-    .active { background:#e0e0ff; }
-    .contact { padding:5px; border-bottom:1px solid #ddd; cursor:pointer; }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Campus Dating — WhatsApp-like Chat</title>
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<style>
+  /* Basic reset & fonts */
+  :root{
+    --green:#25D366; --dark:#111; --muted:#7a7a7a; --bg:#f2f5f7; --panel:#ffffff;
+    --accent:#128C7E; --bubble-other:#ffffff; --bubble-me:#dcf8c6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root{ --bg:#0b1416; --panel:#061014; --bubble-other:#0b2a2a; --bubble-me:#13402f; --muted:#9aa; }
+  }
+  body{ margin:0; font-family: "Helvetica Neue", Arial, sans-serif; background:var(--bg); color:var(--dark); }
+  .app{ max-width:1100px; height:90vh; margin:14px auto; display:grid; grid-template-columns:360px 1fr; gap:12px; box-shadow:0 6px 30px rgba(0,0,0,0.08); }
+  /* Left column (sidebar) */
+  .sidebar{ background:var(--panel); border-radius:8px; display:flex; flex-direction:column; overflow:hidden; }
+  .sb-header{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid #eee; }
+  .sb-left{ display:flex; gap:10px; align-items:center; }
+  .avatar{ width:44px; height:44px; border-radius:50%; background:linear-gradient(45deg,#ddd,#ccc); display:inline-flex; align-items:center; justify-content:center; font-weight:600; color:#fff; }
+  .icon-btn{ background:transparent; border:none; cursor:pointer; padding:6px; border-radius:6px; }
+  .search{ padding:10px 14px; border-bottom:1px solid #eee; }
+  .search input{ width:100%; padding:10px; border-radius:20px; border:1px solid #e6e6e6; box-sizing:border-box; }
+  .chats{ overflow:auto; flex:1; }
+  .chat-item{ display:flex; gap:12px; padding:12px; cursor:pointer; align-items:center; border-bottom:1px solid #f2f2f2; }
+  .chat-item:hover{ background:#f6fbf9; }
+  .chat-item.active{ background:#eef7f2; }
+  .chat-meta{ flex:1; min-width:0; }
+  .chat-title{ display:flex; justify-content:space-between; align-items:center; }
+  .chat-name{ font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .chat-last{ font-size:13px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .badge{ background:#25D366; color:#fff; padding:4px 8px; border-radius:999px; font-size:12px; }
+  .small{ font-size:12px; color:var(--muted); }
+
+  /* Right column (chat area) */
+  .chatbox{ background:var(--panel); border-radius:8px; display:flex; flex-direction:column; overflow:hidden; }
+  .cb-header{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid #eee; }
+  .cb-title{ display:flex; gap:12px; align-items:center; min-width:0; }
+  .status{ font-size:13px; color:var(--muted); }
+  .messages{ flex:1; padding:18px; overflow:auto; display:flex; flex-direction:column; gap:10px; background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent); }
+  .bubble{ max-width:72%; padding:10px 12px; border-radius:10px; position:relative; box-shadow:0 1px 0 rgba(0,0,0,0.03); }
+  .bubble.me{ align-self:flex-end; background:var(--bubble-me); border-bottom-right-radius:2px; }
+  .bubble.other{ align-self:flex-start; background:var(--bubble-other); border-bottom-left-radius:2px; }
+  .meta{ font-size:11px; color:var(--muted); margin-top:6px; display:flex; gap:8px; align-items:center; justify-content:flex-end; }
+  .tick{ width:16px; height:12px; display:inline-block; vertical-align:middle; opacity:0.6; }
+  .typing{ font-style:italic; color:var(--muted); margin:6px 0; }
+
+  /* composer */
+  .composer{ padding:10px; border-top:1px solid #eee; display:flex; align-items:center; gap:8px; }
+  .compose-input{ flex:1; background:#fff; border-radius:20px; padding:8px 12px; border:1px solid #e6e6e6; display:flex; gap:8px; align-items:center; }
+  .compose-input input{ flex:1; border:none; outline:none; padding:6px; }
+  .tool-btn{ background:transparent; border:none; cursor:pointer; font-size:18px; padding:6px; }
+  .send-btn{ background:var(--accent); color:#fff; border:none; padding:8px 12px; border-radius:20px; cursor:pointer; }
+
+  /* reactions & small UI */
+  .reaction-bar{ display:flex; gap:6px; padding:6px; border-radius:12px; background:#fff; box-shadow:0 6px 18px rgba(0,0,0,0.06); position:absolute; transform:translateY(-120%); }
+  .reaction{ font-size:18px; cursor:pointer; padding:4px; }
+
+  /* message attachment thumbnail */
+  .msg-img{ max-width:280px; border-radius:8px; display:block; cursor:pointer; }
+  .msg-file{ display:flex; gap:8px; align-items:center; padding:8px; background:#fafafa; border-radius:6px; border:1px solid #eee; }
+
+  /* modals */
+  .modal{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); z-index:40; }
+  .modal.show{ display:flex; }
+  .modal img{ max-width:92vw; max-height:92vh; border-radius:8px; }
+
+  /* responsive */
+  @media (max-width:900px){
+    .app{ grid-template-columns: 1fr; height:100vh; margin:0; border-radius:0; box-shadow:none; }
+    .sidebar{ order:-1; display:none; height:auto; }
+    .sidebar.show{ display:block; }
+    .cb-header .right-actions{ display:none; }
+  }
+  /* small touches */
+  .muted{ color:var(--muted); font-size:12px; }
+  .profile-pic{ width:36px; height:36px; border-radius:50%; background:#cfcfcf; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-weight:600; }
+</style>
 </head>
 <body>
-  <h2>Campus Dating Chat</h2>
+  <!-- AUTH area (simple) -->
+  <div id="root" style="padding:14px;">
+    <div id="authContainer" style="max-width:1100px;margin:0 auto;">
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:320px;" class="form">
+          <h3>Register</h3>
+          <input id="regUsername" placeholder="Username" />
+          <input id="regEmail" placeholder="Email" />
+          <input id="regPassword" placeholder="Password" type="password" />
+          <button id="btnRegister">Register</button>
+        </div>
+        <div style="flex:1;min-width:320px;" class="form">
+          <h3>Login</h3>
+          <input id="loginIdentifier" placeholder="Email or username" />
+          <input id="loginPassword" placeholder="Password" type="password" />
+          <button id="btnLogin">Login</button>
+          <div style="margin-top:8px;"><a href="#" id="showForgot">Forgot password?</a></div>
+        </div>
+      </div>
+      <div id="forgotPanel" style="display:none;margin-top:8px;">
+        <input id="forgotEmail" placeholder="Enter registered email"/>
+        <button id="btnForgot">Send reset</button>
+      </div>
+    </div>
+  </div>
 
-  <div id="typingIndicator"></div>
-  <div id="contacts"></div>
-  <div id="chatBox"></div>
+  <!-- Main app (hidden until logged-in) -->
+  <div class="app" id="app" style="display:none;">
+    <!-- Sidebar / Chats -->
+    <div class="sidebar" id="sidebar">
+      <div class="sb-header">
+        <div class="sb-left">
+          <div class="avatar" id="myAvatar">ME</div>
+          <div>
+            <div style="font-weight:700" id="myName">You</div>
+            <div style="font-size:13px;color:var(--muted)" id="myPhone">online</div>
+          </div>
+        </div>
+        <div>
+          <button class="icon-btn" id="newChatBtn" title="New chat">✚</button>
+          <button class="icon-btn" id="menuBtn" title="Menu">☰</button>
+        </div>
+      </div>
 
-  <input id="messageInput" placeholder="Type a message..."/>
-  <button id="sendBtn">Send</button>
+      <div class="search">
+        <input id="searchInput" placeholder="Search or start new chat" />
+      </div>
 
+      <div style="display:flex;gap:8px;padding:8px;">
+        <button class="icon-btn" id="showPeopleBtn">People</button>
+        <button class="icon-btn" id="showGroupsBtn">Groups</button>
+      </div>
+
+      <div class="chats" id="chatsList"></div>
+    </div>
+
+    <!-- Chat area -->
+    <div class="chatbox" id="chatbox">
+      <div class="cb-header">
+        <div class="cb-title">
+          <div class="profile-pic" id="chatAvatar">A</div>
+          <div style="min-width:0">
+            <div id="chatTitle" style="font-weight:700;white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Select a chat</div>
+            <div id="chatStatus" class="status">last seen —</div>
+          </div>
+        </div>
+        <div class="right-actions">
+          <button class="icon-btn" id="callBtn">📞</button>
+          <button class="icon-btn" id="videoBtn">🎥</button>
+          <button class="icon-btn" id="chatInfoBtn">ℹ️</button>
+        </div>
+      </div>
+
+      <div id="messages" class="messages"></div>
+
+      <div class="composer">
+        <button class="tool-btn" id="emojiBtn">😊</button>
+        <div class="compose-input" id="composeInput">
+          <input id="inputText" placeholder="Type a message" />
+          <input type="file" id="fileInput" style="display:none" />
+        </div>
+        <button class="tool-btn" id="attachBtn">📎</button>
+        <button class="send-btn" id="sendBtn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image/file modal -->
+  <div id="previewModal" class="modal"><img id="previewImg" src="" alt="preview" /></div>
+
+  <!-- Group create modal (simple) -->
+  <div id="groupModal" class="modal" style="align-items:flex-start; padding-top:80px;">
+    <div style="background:#fff;padding:14px;border-radius:8px;min-width:300px;">
+      <h3>Create group</h3>
+      <input id="groupName" placeholder="Group name" />
+      <div id="membersList" style="max-height:220px;overflow:auto;margin-top:8px;"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button id="createGroup">Create</button>
+        <button id="cancelCreateGroup">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reaction picker -->
+  <div id="reactionPicker" style="display:none;position:fixed;z-index:50;"></div>
+
+  <!-- Socket.IO -->
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <script>
-  // ==============================
-  // CONFIG
-  // ==============================
-  const API = "https://campus-dating-backend-10.onrender.com";
-  const socket = io(API);
+  /* =========================
+     CONFIG
+     ========================= */
+  const API = "https://campus-dating-backend-10.onrender.com"; // <-- set your backend url
+  const socketOpts = { transports:['websocket'] };
 
-  // Replace with real logged-in user
-  const currentUser = "alice";  
-  let activeContact = null;
-  let unreadCounts = {};
-  let typingTimeout;
+  /* DOM refs */
+  const authContainer = document.getElementById('authContainer');
+  const appEl = document.getElementById('app');
+  const sidebar = document.getElementById('sidebar');
+  const chatsList = document.getElementById('chatsList');
+  const chatTitle = document.getElementById('chatTitle');
+  const chatAvatar = document.getElementById('chatAvatar');
+  const chatStatus = document.getElementById('chatStatus');
+  const messagesEl = document.getElementById('messages');
+  const inputText = document.getElementById('inputText');
+  const sendBtn = document.getElementById('sendBtn');
+  const attachBtn = document.getElementById('attachBtn');
+  const fileInput = document.getElementById('fileInput');
+  const emojiBtn = document.getElementById('emojiBtn');
+  const previewModal = document.getElementById('previewModal');
+  const previewImg = document.getElementById('previewImg');
+  const groupModal = document.getElementById('groupModal');
+  const membersList = document.getElementById('membersList');
+  const reactionPicker = document.getElementById('reactionPicker');
+  const searchInput = document.getElementById('searchInput');
 
-  const contactsDiv = document.getElementById("contacts");
-  const chatBox = document.getElementById("chatBox");
-  const messageInput = document.getElementById("messageInput");
-  const typingIndicatorDiv = document.getElementById("typingIndicator");
-  const sendBtn = document.getElementById("sendBtn");
+  /* Auth DOM */
+  const btnRegister = document.getElementById('btnRegister');
+  const btnLogin = document.getElementById('btnLogin');
+  const btnForgot = document.getElementById('btnForgot');
+  const regUsername = document.getElementById('regUsername');
+  const regEmail = document.getElementById('regEmail');
+  const regPassword = document.getElementById('regPassword');
+  const loginIdentifier = document.getElementById('loginIdentifier');
+  const loginPassword = document.getElementById('loginPassword');
 
-  // ==============================
-  // SOCKET EVENTS
-  // ==============================
-  socket.emit("user-online", currentUser);
+  /* Group UI */
+  const newChatBtn = document.getElementById('newChatBtn');
 
-  socket.on("update-users", (users) => {
-    loadContacts(users);
+  /* STATE */
+  let socket = null;
+  let token = localStorage.getItem('token') || null;
+  let currentUser = localStorage.getItem('currentUser') || null;
+  let activeChat = null; // { type: 'user'|'group', id: username or groupId, name }
+  let chats = []; // list of chats (users & groups)
+  let people = []; // contacts array of usernames
+  let groups = []; // groups array { id, name, members }
+  let unread = {}; // unread counts keyed by 'user:alice' or 'group:gid'
+  let statuses = {}; // online/last seen map
+  let typingTimer = null;
+
+  /* helper headers */
+  function headers(){ const h = {}; if(token) h['Authorization'] = 'Bearer '+token; return h; }
+
+  /* =========================
+     AUTH (simple)
+     ========================= */
+  btnRegister?.addEventListener('click', async ()=>{
+    const username = regUsername.value.trim();
+    const email = regEmail.value.trim();
+    const password = regPassword.value.trim();
+    if(!username||!email||!password) return alert('Fill fields');
+    try {
+      const res = await fetch(`${API}/api/register`, { method:'POST', headers:{'Content-Type':'application/json', ...headers()}, body: JSON.stringify({ username, email, password }) });
+      const d = await res.json();
+      if(!res.ok) return alert(d.message||JSON.stringify(d));
+      alert('Registered. Login now.');
+    } catch(e){ console.error(e); alert('Network error'); }
   });
 
-  // Typing indicator
-  socket.on("typing", ({ sender, receiver }) => {
-    if(sender === activeContact && receiver === currentUser) {
-      typingIndicatorDiv.textContent = `${sender} is typing...`;
-      clearTimeout(typingTimeout);
-      typingTimeout = setTimeout(() => { typingIndicatorDiv.textContent = ""; }, 2000);
-    }
+  btnLogin?.addEventListener('click', async ()=>{
+    const identifier = loginIdentifier.value.trim();
+    const password = loginPassword.value.trim();
+    if(!identifier||!password) return alert('Enter credentials');
+    try {
+      const res = await fetch(`${API}/api/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ identifier, password }) });
+      const d = await res.json();
+      if(!res.ok) return alert(d.message||'Login failed');
+      token = d.token || d.data?.token || null;
+      currentUser = d.user?.username || d.username || identifier;
+      localStorage.setItem('token', token || '');
+      localStorage.setItem('currentUser', currentUser);
+      openApp();
+    } catch(e){ console.error(e); alert('Network error'); }
   });
 
-  // Handle incoming messages
-  socket.on("chat-message", (msg) => {
-    if(msg.receiver === currentUser) {
-      if (msg.sender === activeContact) {
-        renderMessage(msg);
-      } else {
-        unreadCounts[msg.sender] = (unreadCounts[msg.sender] || 0) + 1;
-        loadContacts();
-      }
-    }
-  });
+  function openApp(){
+    document.getElementById('authContainer').style.display = 'none';
+    appEl.style.display = 'grid';
+    initSocket();
+    refreshLists();
+  }
 
-  // ==============================
-  // EVENTS
-  // ==============================
-  messageInput.addEventListener("input", () => {
-    if(activeContact) {
-      socket.emit("typing", { sender: currentUser, receiver: activeContact });
-    }
-  });
+  /* auto-login if saved */
+  if(currentUser){ openApp(); }
 
-  sendBtn.addEventListener("click", () => {
-    if(activeContact && messageInput.value.trim()) {
-      const msg = { sender: currentUser, receiver: activeContact, text: messageInput.value };
-      socket.emit("chat-message", msg);
-      renderMessage(msg);
-      messageInput.value = "";
-    }
-  });
+  /* =========================
+     SOCKET & REALTIME
+     ========================= */
+  function initSocket(){
+    try {
+      if(token) socketOpts.auth = { token };
+      socket = io(API, socketOpts);
+      socket.on('connect', ()=> {
+        console.log('socket connected', socket.id);
+        if(currentUser) socket.emit('user-online', currentUser);
+      });
 
-  // Delete message
-  chatBox.addEventListener("click", async (e) => {
-    const msgId = e.target.dataset.id;
-    if(!msgId) return;
-    if(confirm("Delete this message?")) {
-      await fetch(`${API}/api/message/${msgId}/${currentUser}`, { method: "DELETE" });
-      e.target.remove();
-    }
-  });
+      socket.on('update-users', (map)=>{ statuses = map || {}; renderChats(); updateChatHeaderStatus(); });
 
-  // ==============================
-  // FUNCTIONS
-  // ==============================
-  function loadContacts(userStatuses = {}) {
-    fetch(`${API}/api/contacts/${currentUser}`)
-      .then(res => res.json())
-      .then(contacts => {
-        contactsDiv.innerHTML = "";
-        contacts.forEach(contact => {
-          const div = document.createElement("div");
-          div.className = "contact";
-          div.innerHTML = `
-            <span>${contact}</span>
-            <small style="color:gray; margin-left:8px;">
-              ${userStatuses[contact] || "offline"}
-            </small>
-          `;
-          if(unreadCounts[contact]) {
-            const badge = document.createElement("span");
-            badge.className = "badge";
-            badge.textContent = unreadCounts[contact];
-            div.appendChild(badge);
+      socket.on('typing', ({ sender, receiver, isGroup })=>{
+        if(isGroup){
+          if(activeChat?.type==='group' && activeChat.id===receiver){
+            showTyping(`${sender} is typing...`);
           }
-          div.onclick = () => {
-            selectContact(contact, userStatuses);
-            unreadCounts[contact] = 0;
-            loadContacts(userStatuses);
-          };
-          if(contact === activeContact) div.classList.add("active");
-          contactsDiv.appendChild(div);
-        });
+        } else {
+          if(activeChat?.type==='user' && activeChat.id===sender){
+            showTyping(`${sender} is typing...`);
+          }
+        }
       });
-  }
 
-  function selectContact(contact, userStatuses={}) {
-    activeContact = contact;
-    chatBox.innerHTML = "";
-    fetch(`${API}/api/messages/${currentUser}/${contact}`)
-      .then(res => res.json())
-      .then(messages => {
-        chatBox.innerHTML = "";
-        messages.forEach(msg => renderMessage(msg));
+      socket.on('chat-message', (msg)=>{
+        // expected msg: { _id, sender, receiver, isGroup, text?, image?, file?, timestamp, delivered?, read? }
+        console.log('incoming', msg);
+        const key = msg.isGroup ? 'group:'+msg.receiver : 'user:'+ (msg.sender === currentUser ? msg.receiver : msg.sender);
+        if(!activeChat || (msg.isGroup && activeChat.type!=='group') || (!msg.isGroup && activeChat.id !== (msg.sender===currentUser ? msg.receiver : msg.sender) && activeChat.type!=='user')) {
+          // not open — increment unread
+          unread[key] = (unread[key]||0) + 1;
+          renderChats();
+        } else {
+          // open conversation
+          renderMessage(msg);
+          // emit read acknowledgment for incoming messages
+          if(!msg.isGroup && msg.receiver===currentUser && msg.sender!==currentUser) {
+            socket.emit('message-read', { messageId: msg._id, reader: currentUser, sender: msg.sender });
+          }
+        }
       });
+
+      socket.on('message-read', (info)=>{
+        // info: { messageId, reader, chatKey }
+        // you can update UI to show read tick for your messages
+        markMessageRead(info.messageId);
+      });
+
+      socket.on('disconnect', ()=> console.warn('socket disconnected'));
+    } catch(e){ console.error('socket init', e); }
   }
 
-  function renderMessage(msg) {
-    const p = document.createElement("p");
-    p.dataset.id = msg._id || ""; 
-    p.textContent = `${msg.sender}: ${msg.text}`;
-    chatBox.appendChild(p);
+  /* =========================
+     LOAD/REFRESH CONTACTS & GROUPS
+     ========================= */
+  async function refreshLists(){
+    try {
+      const res1 = await fetch(`${API}/api/contacts/${currentUser}`, { headers: headers() });
+      if(res1.ok) people = await res1.json(); else people = [];
+      const res2 = await fetch(`${API}/api/groups/${currentUser}`, { headers: headers() });
+      if(res2.ok) groups = await res2.json(); else groups = [];
+      buildChatsFromLists();
+      renderChats();
+    } catch(e){ console.error(e); }
   }
 
-  // Initial load
-  loadContacts();
+  function buildChatsFromLists(){
+    // unify users and groups into chats array for listing order
+    chats = [];
+    (people||[]).forEach(p => chats.push({ type:'user', id:p, name:p }));
+    (groups||[]).forEach(g => chats.unshift({ type:'group', id:g.id, name:g.name }));
+  }
+
+  function renderChats(filter=''){
+    chatsList.innerHTML = '';
+    const q = filter.trim().toLowerCase();
+    chats.filter(c => !q || c.name.toLowerCase().includes(q)).forEach(c => {
+      const el = document.createElement('div'); el.className = 'chat-item' + (activeChat && activeChat.type===c.type && activeChat.id===c.id ? ' active':'');
+
+      // avatar
+      const av = document.createElement('div'); av.className='avatar'; av.style.width='48px'; av.style.height='48px'; av.textContent = c.name[0]?.toUpperCase() || '?';
+      // meta
+      const meta = document.createElement('div'); meta.className='chat-meta';
+      const titleRow = document.createElement('div'); titleRow.className='chat-title';
+      const nameSpan = document.createElement('div'); nameSpan.className='chat-name'; nameSpan.textContent = c.name;
+      const rightSpan = document.createElement('div'); rightSpan.style.textAlign='right';
+      const timeSpan = document.createElement('div'); timeSpan.className='small'; timeSpan.textContent = ''; // optionally last message time
+      const badge = document.createElement('div'); badge.className='badge'; badge.style.display = (unread[(c.type==='group'?'group:':'user:')+c.id] ? 'inline-block':'none'); badge.textContent = unread[(c.type==='group'?'group:':'user:')+c.id] || '';
+      rightSpan.appendChild(timeSpan); rightSpan.appendChild(badge);
+      titleRow.appendChild(nameSpan); titleRow.appendChild(rightSpan);
+
+      const lastRow = document.createElement('div'); lastRow.className='chat-last'; lastRow.textContent = statuses[c.id] || (c.type==='group' ? `${(c.members||[]).length || 0} members` : 'offline');
+
+      meta.appendChild(titleRow); meta.appendChild(lastRow);
+
+      el.appendChild(av); el.appendChild(meta);
+      el.addEventListener('click', ()=> openChat(c));
+      chatsList.appendChild(el);
+    });
+  }
+
+  /* =========================
+     OPEN CHAT (load messages)
+     ========================= */
+  async function openChat(c){
+    activeChat = c;
+    unread[(c.type==='group'?'group:':'user:')+c.id] = 0;
+    renderChats();
+    chatTitle.textContent = c.name;
+    chatAvatar.textContent = c.name[0]?.toUpperCase() || '?';
+    chatStatus.textContent = statuses[c.id] || (c.type==='group' ? `${(c.members||[]).length || 0} members` : 'offline');
+    messagesEl.innerHTML = '';
+    try {
+      // backend: GET /api/messages/:user/:peerOrGroupId
+      const res = await fetch(`${API}/api/messages/${currentUser}/${encodeURIComponent(c.id)}`, { headers: headers() });
+      if(!res.ok){ console.error('messages fetch failed', await res.text()); return; }
+      const msgs = await res.json();
+      msgs.forEach(m => renderMessage(m));
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    } catch(e){ console.error(e); }
+  }
+
+  /* =========================
+     RENDER MESSAGE
+     ========================= */
+  function renderMessage(m){
+    // m: {_id, sender, receiver, isGroup, text, image, file, timestamp, delivered, read}
+    const el = document.createElement('div');
+    el.className = 'bubble ' + (m.sender===currentUser ? 'me':'other');
+    el.dataset.id = m._id || '';
+    // content
+    if(m.image){
+      const img = document.createElement('img'); img.src = m.image; img.className='msg-img'; img.addEventListener('click', ()=> { previewImg.src = m.image; previewModal.classList.add('show'); });
+      el.appendChild(img);
+    }
+    if(m.file){
+      const f = document.createElement('div'); f.className='msg-file';
+      f.innerHTML = `<div>📁 <strong>${escapeHtml(m.file.name||'file')}</strong></div>`;
+      el.appendChild(f);
+    }
+    if(m.text){
+      const text = document.createElement('div'); text.textContent = m.text; el.appendChild(text);
+    }
+    const meta = document.createElement('div'); meta.className='meta';
+    const timeStr = m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '';
+    const ticks = document.createElement('span'); ticks.className='tick'; ticks.innerHTML = (m.sender===currentUser ? (m.read ? '✔✔' : (m.delivered ? '✔✔' : '✔')) : '');
+    meta.innerHTML = `<span class="muted">${timeStr}</span>`;
+    meta.appendChild(ticks);
+    el.appendChild(meta);
+
+    // message actions: click to show reaction picker / long press to delete
+    el.addEventListener('contextmenu', (ev)=> { ev.preventDefault(); showReactionPicker(ev.pageX, ev.pageY, m, el); });
+    el.addEventListener('dblclick', async ()=>{ // quick delete for own messages
+      if(m.sender!==currentUser) return;
+      if(!confirm('Delete message?')) return;
+      try {
+        const res = await fetch(`${API}/api/message/${m._id}/${currentUser}`, { method:'DELETE', headers: headers() });
+        if(res.ok) el.remove();
+      } catch(e){ console.error(e); alert('Delete error'); }
+    });
+
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function markMessageRead(messageId){
+    // find the element and show read ticks visually (simple)
+    const el = messagesEl.querySelector(`[data-id="${messageId}"]`);
+    if(el){
+      const tickSpan = el.querySelector('.tick');
+      if(tickSpan) tickSpan.innerHTML = '✔✔';
+    }
+  }
+
+  function showTyping(text){
+    chatStatus.textContent = text;
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(()=> {
+      // restore status
+      if(activeChat) chatStatus.textContent = statuses[activeChat.id] || '';
+      else chatStatus.textContent = '';
+    }, 1800);
+  }
+
+  /* =========================
+     SENDING: message, file, image
+     ========================= */
+  attachBtn.addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', ()=> {
+    if(fileInput.files && fileInput.files[0]) {
+      // auto send attachments
+      sendAttachment(fileInput.files[0]);
+    }
+  });
+
+  sendBtn.addEventListener('click', sendTextMessage);
+  inputText.addEventListener('keypress', (e)=>{ if(e.key==='Enter') sendTextMessage(); else { if(socket && activeChat) socket.emit('typing', { sender: currentUser, receiver: activeChat.id, isGroup: activeChat.type==='group' }); } });
+
+  async function sendTextMessage(){
+    const text = inputText.value.trim();
+    if(!text || !activeChat) return;
+    const msg = { sender: currentUser, receiver: activeChat.id, isGroup: activeChat.type==='group', text, timestamp: new Date() };
+    // emit via socket
+    if(socket) socket.emit('chat-message', msg);
+    renderMessage(Object.assign({}, msg, { _id: 'temp-'+Date.now() }));
+    inputText.value = '';
+    // optionally persist via API (backend should save)
+    try { await fetch(`${API}/api/messages`, { method:'POST', headers:{ 'Content-Type':'application/json', ...headers() }, body: JSON.stringify(msg) }); } catch(e){ /* ignore*/ }
+  }
+
+  async function sendAttachment(file){
+    if(!activeChat) return alert('Select a chat');
+    const fd = new FormData(); fd.append('file', file); fd.append('uploader', currentUser); fd.append('receiver', activeChat.id); fd.append('isGroup', activeChat.type==='group'?'1':'0');
+    try {
+      const res = await fetch(`${API}/api/files`, { method:'POST', body: fd, headers: token ? { 'Authorization': 'Bearer '+token } : {} });
+      const d = await res.json();
+      if(!res.ok) return alert(d.message || 'Upload failed');
+      const payload = { sender: currentUser, receiver: activeChat.id, isGroup: activeChat.type==='group', file: { url: d.url || d.path || d.data?.url, name: d.name || file.name, size: d.size }, timestamp: new Date() };
+      if(socket) socket.emit('chat-message', payload);
+      renderMessage(Object.assign({}, payload, { _id: 'temp-'+Date.now() }));
+      fileInput.value = '';
+    } catch(e){ console.error(e); alert('Upload error'); }
+  }
+
+  /* =========================
+     REACTIONS (very simple)
+     ========================= */
+  function showReactionPicker(x,y,msg, el){
+    const emojis = ['👍','❤️','😂','😮','😢','👏'];
+    reactionPicker.style.left = x+'px'; reactionPicker.style.top = y+'px';
+    reactionPicker.innerHTML = emojis.map(e => `<button class="reaction" data-e="${e}">${e}</button>`).join('');
+    reactionPicker.style.display = 'block';
+    const onClick = async (ev) => {
+      const emoji = ev.target.dataset.e;
+      if(!emoji) return;
+      // emit reaction to backend (or attach to message)
+      if(socket) socket.emit('message-reaction', { messageId: msg._id, reactor: currentUser, emoji });
+      reactionPicker.style.display = 'none';
+      document.removeEventListener('click', onClick);
+    };
+    document.addEventListener('click', onClick);
+  }
+
+  /* =========================
+     UTILS
+     ========================= */
+  function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+
+  /* =========================
+     UI & helpers: buttons & modals
+     ========================= */
+  previewModal.addEventListener('click', ()=> previewModal.classList.remove('show'));
+  document.getElementById('newChatBtn').addEventListener('click', ()=> {
+    // show group modal to create group or start new chat
+    groupModal.classList.add('show');
+    groupModal.style.display = 'flex';
+    membersList.innerHTML = '';
+    (people||[]).forEach(p => { membersList.innerHTML += `<div><label><input type="checkbox" value="${escapeHtml(p)}"> ${escapeHtml(p)}</label></div>`; });
+  });
+
+  document.getElementById('cancelCreateGroup').addEventListener('click', ()=> { groupModal.classList.remove('show'); groupModal.style.display='none'; });
+  document.getElementById('createGroup').addEventListener('click', async ()=>{
+    const name = document.getElementById('groupName').value.trim();
+    const checked = Array.from(membersList.querySelectorAll('input[type=checkbox]:checked')).map(i=>i.value);
+    if(!name || checked.length===0) return alert('Enter group name and select members');
+    const members = [...new Set([...checked, currentUser])];
+    try {
+      const res = await fetch(`${API}/api/groups/create`, { method:'POST', headers:{ 'Content-Type':'application/json', ...headers() }, body: JSON.stringify({ name, members })});
+      if(!res.ok) return alert('Group create failed');
+      groupModal.classList.remove('show'); groupModal.style.display='none';
+      await refreshLists();
+    } catch(e){ console.error(e); alert('Network error'); }
+  });
+
+  /* search */
+  searchInput.addEventListener('input', (e)=> renderChats(e.target.value) );
+
+  /* =========================
+     BACKEND EXPECTATIONS
+     =========================
+     (Read this and make sure your server supports these)
+     - REST:
+       POST  /api/register         { username,email,password }
+       POST  /api/login            { identifier,password } -> { token, user }
+       POST  /api/forgot-password  { email }
+       GET   /api/contacts/:username -> [ usernames ]
+       GET   /api/groups/:username   -> [ { id, name, members } ]
+       POST  /api/groups/create     { name, members } -> group
+       GET   /api/messages/:user/:peerOrGroupId -> [ messages:{_id,sender,receiver,isGroup,text,image,file,timestamp,delivered,read} ]
+       POST  /api/messages         (optional persist)
+       POST  /api/files            (multipart/form-data file) -> { url, name, size, type, id }
+       DELETE /api/message/:id/:username
+     - Socket events:
+       client->server: user-online (username)
+       client->server: typing { sender, receiver, isGroup }
+       client->server: chat-message { sender, receiver, isGroup, text?, image?, file?, timestamp }
+       client->server: message-read { messageId, reader, sender }
+       server->client: update-users { username: "online" | "last seen HH:MM" | "offline" }
+       server->client: chat-message (deliver messages)
+       server->client: message-read (ack)
+       server->client: message-reaction (optional)
+  ========================= */
+
+  console.log('WhatsApp-like frontend loaded. API=', API);
   </script>
 </body>
 </html>
