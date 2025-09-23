@@ -17,7 +17,7 @@ nav button { flex:1; padding:10px; border:none; background:none; font-size:14px;
 nav button.active { color:#C2185B; font-weight:bold; }
 .tab { display:none; padding:10px; margin-top:10px; }
 .tab.active { display:block; }
-#chatBox { border:1px solid #C2185B; padding:10px; height:200px; overflow-y:auto; background:#FFFFFF; border-radius:5px; }
+#chatBox { border:1px solid #C2185B; padding:10px; height:300px; overflow-y:auto; background:#FFFFFF; border-radius:5px; }
 #messageInput { width:70%; padding:5px; border:1px solid #C2185B; border-radius:4px; }
 #sendBtn { padding:6px 10px; background:#FF4081; color:white; border:none; cursor:pointer; border-radius:4px; }
 .statusItem { border-bottom:1px solid #F8BBD0; padding:8px; cursor:pointer; }
@@ -25,9 +25,11 @@ nav button.active { color:#C2185B; font-weight:bold; }
 .settingsForm { display:flex; flex-direction:column; gap:10px; }
 .settingsForm input, .settingsForm select { padding:8px; font-size:14px; border:1px solid #FF4081; border-radius:4px; }
 .settingsForm button { padding:10px; background:#FF4081; color:white; border:none; cursor:pointer; border-radius:4px; }
+.contactItem { cursor:pointer; padding:5px; border-bottom:1px solid #F8BBD0; }
+.contactItem:hover { background:#FFD1E5; }
 @media screen and (max-width:480px){
   .container { margin:100px 10px 20px; width:auto; }
-  #chatBox { height:150px; }
+  #chatBox { height:200px; }
 }
 </style>
 </head>
@@ -63,13 +65,10 @@ nav button.active { color:#C2185B; font-weight:bold; }
 <!-- MAIN APP -->
 <div id="appContainer" class="hidden container">
   <div id="content">
-
     <!-- Chats -->
     <div id="chatsTab" class="tab active">
       <h3>Chats</h3>
-      <select id="chatReceiver">
-        <option value="" disabled selected>Select contact</option>
-      </select>
+      <select id="chatReceiver"><option value="">Select Contact</option></select>
       <div id="chatBox"></div>
       <input type="text" id="messageInput" placeholder="Type a message..." />
       <button id="sendBtn">Send</button>
@@ -108,7 +107,6 @@ nav button.active { color:#C2185B; font-weight:bold; }
         <button type="submit">Save</button>
       </form>
     </div>
-
   </div>
 
   <nav>
@@ -122,9 +120,11 @@ nav button.active { color:#C2185B; font-weight:bold; }
 <footer>App by: PAUL MAKOKHA</footer>
 
 <script>
-const API = "https://campus-dating-backend-15.onrender.com";
+const API = "https://campus-dating-backend-15.onrender.com"; 
 let currentUser = null;
 let contacts = [];
+let currentChat = null;
+let chatInterval = null;
 
 // Show/hide forms
 function showLogin() { document.getElementById('loginForm').classList.remove('hidden'); document.getElementById('registerForm').classList.add('hidden'); document.getElementById('forgotForm').classList.add('hidden'); }
@@ -132,21 +132,21 @@ function showRegister() { document.getElementById('loginForm').classList.add('hi
 function showForgot() { document.getElementById('loginForm').classList.add('hidden'); document.getElementById('registerForm').classList.add('hidden'); document.getElementById('forgotForm').classList.remove('hidden'); }
 function showTab(tabId) { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.getElementById(tabId).classList.add('active'); document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active')); event.target.classList.add('active'); }
 
-// === Auth functions ===
+// Auth functions
 async function login() {
   const username = document.getElementById('loginUsername').value;
   const password = document.getElementById('loginPassword').value;
-  try {
-    const res = await fetch(`${API}/auth/login`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ username,password })});
-    if(res.ok) { 
-      const data=await res.json(); 
-      currentUser = username; 
-      localStorage.setItem('token', data.token); 
-      document.getElementById('authContainer').classList.add('hidden'); 
-      document.getElementById('appContainer').classList.remove('hidden'); 
-      loadStatus(); loadGroups(); loadContactsForGroups(); 
-    } else alert('Login failed'); 
-  } catch(err){ alert('Cannot connect to backend'); console.error(err); }
+  const res = await fetch(`${API}/auth/login`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ username,password })});
+  if(res.ok) { 
+    const data=await res.json(); 
+    currentUser = username; 
+    localStorage.setItem('token', data.token); 
+    document.getElementById('authContainer').classList.add('hidden'); 
+    document.getElementById('appContainer').classList.remove('hidden'); 
+    loadContactsForGroups(); 
+    loadGroups(); 
+    loadStatus();
+  } else alert('Login failed'); 
 }
 
 async function register() {
@@ -156,10 +156,8 @@ async function register() {
   const formData = new FormData();
   formData.append('username', username); formData.append('password', password);
   if(avatar) formData.append('avatar', avatar);
-  try {
-    const res = await fetch(`${API}/auth/register`, { method:'POST', body:formData });
-    if(res.ok) { alert('Registered successfully'); showLogin(); } else alert('Registration failed');
-  } catch(err){ alert('Cannot connect to backend'); console.error(err); }
+  const res = await fetch(`${API}/auth/register`, { method:'POST', body:formData });
+  if(res.ok) { alert('Registered successfully'); showLogin(); } else alert('Registration failed');
 }
 
 async function forgotPassword() {
@@ -167,108 +165,99 @@ async function forgotPassword() {
   alert('Forgot password functionality will connect to backend API');
 }
 
-// === Chats ===
+// Load contacts for chats
+async function loadContactsForGroups() {
+  const res = await fetch(`${API}/api/contacts/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
+  contacts = await res.json();
+  const contactsDiv = document.getElementById('contactsList');
+  contactsDiv.innerHTML=''; contacts.forEach(c=>{ const cb=document.createElement('input'); cb.type='checkbox'; cb.value=c.username; cb.id=`c_${c.username}`; const lbl=document.createElement('label'); lbl.htmlFor=`c_${c.username}`; lbl.textContent=c.username; const wrap=document.createElement('div'); wrap.appendChild(cb); wrap.appendChild(lbl); contactsDiv.appendChild(wrap); });
+
+  // Populate chat select
+  const chatSelect = document.getElementById('chatReceiver');
+  chatSelect.innerHTML='<option value="">Select Contact</option>';
+  contacts.forEach(c=>{ const opt=document.createElement('option'); opt.value=c.username; opt.textContent=c.username; chatSelect.appendChild(opt); });
+}
+
+// Chats
+document.getElementById('chatReceiver').onchange = async function() {
+  currentChat = this.value;
+  await loadChatMessages();
+  if(chatInterval) clearInterval(chatInterval);
+  chatInterval = setInterval(loadChatMessages, 3000);
+};
+
+async function loadChatMessages() {
+  if(!currentChat) return;
+  try {
+    const res = await fetch(`${API}/api/messages/${currentUser}/${currentChat}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
+    if(!res.ok) return;
+    const messages = await res.json();
+    const chatBox = document.getElementById('chatBox');
+    chatBox.innerHTML='';
+    messages.forEach(msg=>renderMessage(msg));
+    chatBox.scrollTop = chatBox.scrollHeight;
+  } catch(err){ console.error(err); }
+}
+
 document.getElementById("sendBtn").onclick = async () => {
   const input = document.getElementById("messageInput");
-  const receiver = document.getElementById("chatReceiver").value;
-  if(!input.value || !receiver) return alert("Select a contact and type a message");
-  const msg = { sender: currentUser, receiver, text: input.value, isGroup:false };
+  if(!input.value || !currentChat) return alert("Select contact and type message");
+  const msg = { sender: currentUser, receiver: currentChat, text: input.value, isGroup:false };
   try {
-    const res = await fetch(`${API}/api/messages`, { 
-      method:'POST', 
-      headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, 
-      body:JSON.stringify(msg) 
-    });
-    const data = await res.json(); renderMessage(data); input.value="";
+    const res = await fetch(`${API}/api/messages`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify(msg) });
+    const data = await res.json(); input.value='';
+    await loadChatMessages();
   } catch(err){ alert('Cannot send message'); console.error(err); }
 };
 
-// Render message with avatar + delete
 function renderMessage(msg) {
   const div = document.createElement("div"); div.style.display="flex"; div.style.alignItems="center"; div.style.marginBottom="5px";
   const avatar = document.createElement("img"); avatar.src = msg.senderAvatar||"default.png"; avatar.style.width="30px"; avatar.style.height="30px"; avatar.style.borderRadius="50%"; avatar.style.marginRight="5px";
   const textDiv = document.createElement("div"); textDiv.textContent=msg.text;
   const delBtn = document.createElement("button"); delBtn.textContent="🗑️"; delBtn.style.marginLeft="5px";
-  delBtn.onclick = async()=>{ 
-    if(confirm("Delete this message?")){ 
-      await fetch(`${API}/api/message/${msg._id}/${currentUser}`, { method:"DELETE", headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } }); 
-      div.remove(); 
-    } 
-  };
-  div.appendChild(avatar); div.appendChild(textDiv); div.appendChild(delBtn); 
-  document.getElementById("chatBox").appendChild(div);
+  delBtn.onclick = async()=>{ if(confirm("Delete this message?")){ await fetch(`${API}/api/message/${msg._id}/${currentUser}`, { method:"DELETE", headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } }); div.remove(); } };
+  div.appendChild(avatar); div.appendChild(textDiv); div.appendChild(delBtn); document.getElementById("chatBox").appendChild(div);
 }
 
-// === Status ===
+// Status
 async function uploadStatus() {
   const fileInput = document.getElementById('statusFile'); const textInput = document.getElementById('statusText');
   const formData = new FormData(); if(fileInput.files[0]) formData.append('file', fileInput.files[0]); if(textInput.value) formData.append('text', textInput.value);
-  try {
-    const res = await fetch(`${API}/status`, { method:'POST', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
-    if(res.ok) { alert('Status uploaded'); loadStatus(); }
-  } catch(err){ alert('Cannot upload status'); console.error(err); }
+  const res = await fetch(`${API}/status`, { method:'POST', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
+  if(res.ok) { alert('Status uploaded'); loadStatus(); }
 }
+
 async function loadStatus() {
-  try {
-    const res = await fetch(`${API}/status/feed`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-    const data = await res.json(); const feed = document.getElementById('statusFeed'); feed.innerHTML='';
-    data.forEach(st => {
-      const div = document.createElement('div'); div.className='statusItem';
-      div.innerHTML = `<strong>${st.user}</strong>: ${st.text||''}`;
-      if(st.fileUrl){
-        const ext = st.fileUrl.split('.').pop().toLowerCase();
-        if(['jpg','jpeg','png','gif'].includes(ext)){ const img=document.createElement('img'); img.src=st.fileUrl; img.style.maxWidth='100px'; img.style.display='block'; div.appendChild(img); }
-        else if(['mp4','webm'].includes(ext)){ const vid=document.createElement('video'); vid.src=st.fileUrl; vid.controls=true; vid.style.maxWidth='150px'; div.appendChild(vid); }
-      }
-      feed.appendChild(div);
-    });
-  } catch(err){ console.error(err); }
+  const res = await fetch(`${API}/status/feed`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
+  const data = await res.json(); const feed = document.getElementById('statusFeed'); feed.innerHTML='';
+  data.forEach(st => {
+    const div = document.createElement('div'); div.className='statusItem';
+    div.innerHTML = `<strong>${st.user}</strong>: ${st.text||''}`;
+    if(st.fileUrl){
+      const ext = st.fileUrl.split('.').pop().toLowerCase();
+      if(['jpg','jpeg','png','gif'].includes(ext)){ const img=document.createElement('img'); img.src=st.fileUrl; img.style.maxWidth='100px'; img.style.display='block'; div.appendChild(img); }
+      else if(['mp4','webm'].includes(ext)){ const vid=document.createElement('video'); vid.src=st.fileUrl; vid.controls=true; vid.style.maxWidth='150px'; div.appendChild(vid); }
+    }
+    feed.appendChild(div);
+  });
 }
 
-// === Groups & contacts ===
-async function loadContactsForGroups() {
-  try {
-    const res = await fetch(`${API}/api/contacts/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-    contacts = await res.json();
-
-    // Contacts for group creation
-    const div = document.getElementById('contactsList'); div.innerHTML='';
-    contacts.forEach(contact => {
-      const checkbox = document.createElement('input'); checkbox.type='checkbox'; checkbox.value=contact.username; checkbox.id=`c_${contact.username}`;
-      const label = document.createElement('label'); label.htmlFor=`c_${contact.username}`; label.textContent=contact.username;
-      const wrapper=document.createElement('div'); wrapper.appendChild(checkbox); wrapper.appendChild(label); div.appendChild(wrapper);
-    });
-
-    // Contacts for chat dropdown
-    const chatSelect = document.getElementById('chatReceiver');
-    chatSelect.innerHTML = '<option value="" disabled selected>Select contact</option>';
-    contacts.forEach(contact => {
-      const opt = document.createElement('option'); opt.value = contact.username; opt.textContent = contact.username;
-      chatSelect.appendChild(opt);
-    });
-
-  } catch(err){ console.error(err); }
-}
-
+// Groups
 async function createGroup() {
   const groupName = document.getElementById('groupName').value;
   const selectedContacts = contacts.filter(c=>document.getElementById(`c_${c.username}`).checked).map(c=>c.username);
   if(!groupName) return alert("Enter group name");
-  try {
-    const res = await fetch(`${API}/api/groups/create`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify({ name:groupName, members:selectedContacts }) });
-    if(res.ok) { alert('Group created'); loadGroups(); }
-  } catch(err){ console.error(err); }
+  const res = await fetch(`${API}/api/groups/create`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify({ name:groupName, members:selectedContacts }) });
+  if(res.ok) { alert('Group created'); loadGroups(); }
 }
 
 async function loadGroups() {
-  try {
-    const res = await fetch(`${API}/api/groups/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-    const groups = await res.json(); const div = document.getElementById('groupList'); div.innerHTML='';
-    groups.forEach(g=>{ const d=document.createElement('div'); d.textContent=g.name; div.appendChild(d); });
-  } catch(err){ console.error(err); }
+  const res = await fetch(`${API}/api/groups/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
+  const groups = await res.json(); const div = document.getElementById('groupList'); div.innerHTML='';
+  groups.forEach(g=>{ const d=document.createElement('div'); d.textContent=g.name; div.appendChild(d); });
 }
 
-// === Profile update ===
+// Profile update
 async function updateProfile(e) {
   e.preventDefault();
   const username = document.getElementById('username').value;
@@ -280,10 +269,8 @@ async function updateProfile(e) {
   if(password) formData.append('password', password);
   if(avatar) formData.append('avatar', avatar);
   if(privacy) formData.append('privacy', privacy);
-  try {
-    const res = await fetch(`${API}/user/${currentUser}/profile`, { method:'PUT', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
-    if(res.ok) alert('Profile updated');
-  } catch(err){ console.error(err); }
+  const res = await fetch(`${API}/user/${currentUser}/profile`, { method:'PUT', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
+  if(res.ok) alert('Profile updated');
 }
 </script>
 
