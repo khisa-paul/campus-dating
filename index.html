@@ -63,9 +63,13 @@ nav button.active { color:#C2185B; font-weight:bold; }
 <!-- MAIN APP -->
 <div id="appContainer" class="hidden container">
   <div id="content">
+
     <!-- Chats -->
     <div id="chatsTab" class="tab active">
       <h3>Chats</h3>
+      <select id="chatReceiver">
+        <option value="" disabled selected>Select contact</option>
+      </select>
       <div id="chatBox"></div>
       <input type="text" id="messageInput" placeholder="Type a message..." />
       <button id="sendBtn">Send</button>
@@ -104,6 +108,7 @@ nav button.active { color:#C2185B; font-weight:bold; }
         <button type="submit">Save</button>
       </form>
     </div>
+
   </div>
 
   <nav>
@@ -117,7 +122,7 @@ nav button.active { color:#C2185B; font-weight:bold; }
 <footer>App by: PAUL MAKOKHA</footer>
 
 <script>
-const API = "https://campus-dating-backend-15.onrender.com"; // updated backend URL
+const API = "https://campus-dating-backend-15.onrender.com";
 let currentUser = null;
 let contacts = [];
 
@@ -131,8 +136,17 @@ function showTab(tabId) { document.querySelectorAll('.tab').forEach(t=>t.classLi
 async function login() {
   const username = document.getElementById('loginUsername').value;
   const password = document.getElementById('loginPassword').value;
-  const res = await fetch(`${API}/auth/login`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ username,password })});
-  if(res.ok) { const data=await res.json(); currentUser = username; localStorage.setItem('token', data.token); document.getElementById('authContainer').classList.add('hidden'); document.getElementById('appContainer').classList.remove('hidden'); loadStatus(); loadGroups(); loadContactsForGroups(); } else alert('Login failed'); 
+  try {
+    const res = await fetch(`${API}/auth/login`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ username,password })});
+    if(res.ok) { 
+      const data=await res.json(); 
+      currentUser = username; 
+      localStorage.setItem('token', data.token); 
+      document.getElementById('authContainer').classList.add('hidden'); 
+      document.getElementById('appContainer').classList.remove('hidden'); 
+      loadStatus(); loadGroups(); loadContactsForGroups(); 
+    } else alert('Login failed'); 
+  } catch(err){ alert('Cannot connect to backend'); console.error(err); }
 }
 
 async function register() {
@@ -142,8 +156,10 @@ async function register() {
   const formData = new FormData();
   formData.append('username', username); formData.append('password', password);
   if(avatar) formData.append('avatar', avatar);
-  const res = await fetch(`${API}/auth/register`, { method:'POST', body:formData });
-  if(res.ok) { alert('Registered successfully'); showLogin(); } else alert('Registration failed');
+  try {
+    const res = await fetch(`${API}/auth/register`, { method:'POST', body:formData });
+    if(res.ok) { alert('Registered successfully'); showLogin(); } else alert('Registration failed');
+  } catch(err){ alert('Cannot connect to backend'); console.error(err); }
 }
 
 async function forgotPassword() {
@@ -154,10 +170,17 @@ async function forgotPassword() {
 // === Chats ===
 document.getElementById("sendBtn").onclick = async () => {
   const input = document.getElementById("messageInput");
-  if(!input.value) return;
-  const msg = { sender: currentUser, receiver: "demoUser2", text: input.value, isGroup:false };
-  const res = await fetch(`${API}/api/messages`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify(msg) });
-  const data = await res.json(); renderMessage(data); input.value="";
+  const receiver = document.getElementById("chatReceiver").value;
+  if(!input.value || !receiver) return alert("Select a contact and type a message");
+  const msg = { sender: currentUser, receiver, text: input.value, isGroup:false };
+  try {
+    const res = await fetch(`${API}/api/messages`, { 
+      method:'POST', 
+      headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, 
+      body:JSON.stringify(msg) 
+    });
+    const data = await res.json(); renderMessage(data); input.value="";
+  } catch(err){ alert('Cannot send message'); console.error(err); }
 };
 
 // Render message with avatar + delete
@@ -166,55 +189,83 @@ function renderMessage(msg) {
   const avatar = document.createElement("img"); avatar.src = msg.senderAvatar||"default.png"; avatar.style.width="30px"; avatar.style.height="30px"; avatar.style.borderRadius="50%"; avatar.style.marginRight="5px";
   const textDiv = document.createElement("div"); textDiv.textContent=msg.text;
   const delBtn = document.createElement("button"); delBtn.textContent="🗑️"; delBtn.style.marginLeft="5px";
-  delBtn.onclick = async()=>{ if(confirm("Delete this message?")){ await fetch(`${API}/api/message/${msg._id}/${currentUser}`, { method:"DELETE", headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } }); div.remove(); } };
-  div.appendChild(avatar); div.appendChild(textDiv); div.appendChild(delBtn); document.getElementById("chatBox").appendChild(div);
+  delBtn.onclick = async()=>{ 
+    if(confirm("Delete this message?")){ 
+      await fetch(`${API}/api/message/${msg._id}/${currentUser}`, { method:"DELETE", headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } }); 
+      div.remove(); 
+    } 
+  };
+  div.appendChild(avatar); div.appendChild(textDiv); div.appendChild(delBtn); 
+  document.getElementById("chatBox").appendChild(div);
 }
 
 // === Status ===
 async function uploadStatus() {
   const fileInput = document.getElementById('statusFile'); const textInput = document.getElementById('statusText');
   const formData = new FormData(); if(fileInput.files[0]) formData.append('file', fileInput.files[0]); if(textInput.value) formData.append('text', textInput.value);
-  const res = await fetch(`${API}/status`, { method:'POST', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
-  if(res.ok) { alert('Status uploaded'); loadStatus(); }
+  try {
+    const res = await fetch(`${API}/status`, { method:'POST', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
+    if(res.ok) { alert('Status uploaded'); loadStatus(); }
+  } catch(err){ alert('Cannot upload status'); console.error(err); }
 }
 async function loadStatus() {
-  const res = await fetch(`${API}/status/feed`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-  const data = await res.json(); const feed = document.getElementById('statusFeed'); feed.innerHTML='';
-  data.forEach(st => {
-    const div = document.createElement('div'); div.className='statusItem';
-    div.innerHTML = `<strong>${st.user}</strong>: ${st.text||''}`;
-    if(st.fileUrl){
-      const ext = st.fileUrl.split('.').pop().toLowerCase();
-      if(['jpg','jpeg','png','gif'].includes(ext)){ const img=document.createElement('img'); img.src=st.fileUrl; img.style.maxWidth='100px'; img.style.display='block'; div.appendChild(img); }
-      else if(['mp4','webm'].includes(ext)){ const vid=document.createElement('video'); vid.src=st.fileUrl; vid.controls=true; vid.style.maxWidth='150px'; div.appendChild(vid); }
-    }
-    feed.appendChild(div);
-  });
+  try {
+    const res = await fetch(`${API}/status/feed`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
+    const data = await res.json(); const feed = document.getElementById('statusFeed'); feed.innerHTML='';
+    data.forEach(st => {
+      const div = document.createElement('div'); div.className='statusItem';
+      div.innerHTML = `<strong>${st.user}</strong>: ${st.text||''}`;
+      if(st.fileUrl){
+        const ext = st.fileUrl.split('.').pop().toLowerCase();
+        if(['jpg','jpeg','png','gif'].includes(ext)){ const img=document.createElement('img'); img.src=st.fileUrl; img.style.maxWidth='100px'; img.style.display='block'; div.appendChild(img); }
+        else if(['mp4','webm'].includes(ext)){ const vid=document.createElement('video'); vid.src=st.fileUrl; vid.controls=true; vid.style.maxWidth='150px'; div.appendChild(vid); }
+      }
+      feed.appendChild(div);
+    });
+  } catch(err){ console.error(err); }
 }
 
 // === Groups & contacts ===
 async function loadContactsForGroups() {
-  const res = await fetch(`${API}/api/contacts/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-  contacts = await res.json();
-  const div = document.getElementById('contactsList'); div.innerHTML='';
-  contacts.forEach(contact => {
-    const checkbox = document.createElement('input'); checkbox.type='checkbox'; checkbox.value=contact.username; checkbox.id=`c_${contact.username}`;
-    const label = document.createElement('label'); label.htmlFor=`c_${contact.username}`; label.textContent=contact.username;
-    const wrapper=document.createElement('div'); wrapper.appendChild(checkbox); wrapper.appendChild(label); div.appendChild(wrapper);
-  });
+  try {
+    const res = await fetch(`${API}/api/contacts/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
+    contacts = await res.json();
+
+    // Contacts for group creation
+    const div = document.getElementById('contactsList'); div.innerHTML='';
+    contacts.forEach(contact => {
+      const checkbox = document.createElement('input'); checkbox.type='checkbox'; checkbox.value=contact.username; checkbox.id=`c_${contact.username}`;
+      const label = document.createElement('label'); label.htmlFor=`c_${contact.username}`; label.textContent=contact.username;
+      const wrapper=document.createElement('div'); wrapper.appendChild(checkbox); wrapper.appendChild(label); div.appendChild(wrapper);
+    });
+
+    // Contacts for chat dropdown
+    const chatSelect = document.getElementById('chatReceiver');
+    chatSelect.innerHTML = '<option value="" disabled selected>Select contact</option>';
+    contacts.forEach(contact => {
+      const opt = document.createElement('option'); opt.value = contact.username; opt.textContent = contact.username;
+      chatSelect.appendChild(opt);
+    });
+
+  } catch(err){ console.error(err); }
 }
 
 async function createGroup() {
   const groupName = document.getElementById('groupName').value;
   const selectedContacts = contacts.filter(c=>document.getElementById(`c_${c.username}`).checked).map(c=>c.username);
   if(!groupName) return alert("Enter group name");
-  const res = await fetch(`${API}/api/groups/create`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify({ name:groupName, members:selectedContacts }) });
-  if(res.ok) { alert('Group created'); loadGroups(); }
+  try {
+    const res = await fetch(`${API}/api/groups/create`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify({ name:groupName, members:selectedContacts }) });
+    if(res.ok) { alert('Group created'); loadGroups(); }
+  } catch(err){ console.error(err); }
 }
+
 async function loadGroups() {
-  const res = await fetch(`${API}/api/groups/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-  const groups = await res.json(); const div = document.getElementById('groupList'); div.innerHTML='';
-  groups.forEach(g=>{ const d=document.createElement('div'); d.textContent=g.name; div.appendChild(d); });
+  try {
+    const res = await fetch(`${API}/api/groups/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
+    const groups = await res.json(); const div = document.getElementById('groupList'); div.innerHTML='';
+    groups.forEach(g=>{ const d=document.createElement('div'); d.textContent=g.name; div.appendChild(d); });
+  } catch(err){ console.error(err); }
 }
 
 // === Profile update ===
@@ -229,8 +280,10 @@ async function updateProfile(e) {
   if(password) formData.append('password', password);
   if(avatar) formData.append('avatar', avatar);
   if(privacy) formData.append('privacy', privacy);
-  const res = await fetch(`${API}/user/${currentUser}/profile`, { method:'PUT', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
-  if(res.ok) alert('Profile updated');
+  try {
+    const res = await fetch(`${API}/user/${currentUser}/profile`, { method:'PUT', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
+    if(res.ok) alert('Profile updated');
+  } catch(err){ console.error(err); }
 }
 </script>
 
