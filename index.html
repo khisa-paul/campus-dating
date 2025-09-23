@@ -5,37 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Campus Dating</title>
 <style>
-  body { margin:0; font-family: Arial, sans-serif; background:#FFE4EC; }
-  header { background:#FF4081; color:white; padding:10px; text-align:center; font-size:18px; font-weight:bold; position:fixed; width:100%; top:0; z-index:100; }
-  .hidden { display:none; }
-  .container { padding:20px; max-width:400px; margin:80px auto 20px; background:white; border-radius:5px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
-  input, select { width:100%; padding:10px; margin:8px 0; font-size:14px; box-sizing:border-box; }
-  button { width:100%; padding:10px; margin:8px 0; background:#FF4081; color:white; border:none; cursor:pointer; font-size:14px; border-radius:4px; }
-  footer { background:#FFE4EC; text-align:center; padding:5px; font-size:12px; border-top:1px solid #C2185B; position:fixed; bottom:0; width:100%; }
-  nav { display:flex; justify-content:space-around; background:#fff; border-top:1px solid #C2185B; position:fixed; bottom:30px; width:100%; }
-  nav button { flex:1; padding:10px; border:none; background:none; font-size:14px; cursor:pointer; color:#FF4081; }
-  nav button.active { color:#C2185B; font-weight:bold; }
-  .tab { display:none; padding:10px; margin-top:10px; }
-  .tab.active { display:block; }
-  #chatBox { border:1px solid #C2185B; padding:10px; height:200px; overflow-y:auto; background:#FFFFFF; border-radius:5px; }
-  #messageInput { width:70%; padding:5px; border:1px solid #C2185B; border-radius:4px; }
-  #sendBtn { padding:6px 10px; background:#FF4081; color:white; border:none; cursor:pointer; border-radius:4px; }
-  .statusItem { border-bottom:1px solid #F8BBD0; padding:8px; cursor:pointer; }
-  .statusItem:hover { background:#FFD1E5; }
-  .settingsForm { display:flex; flex-direction:column; gap:10px; }
-  .settingsForm input, .settingsForm select { padding:8px; font-size:14px; border:1px solid #FF4081; border-radius:4px; }
-  .settingsForm button { padding:10px; background:#FF4081; color:white; border:none; cursor:pointer; border-radius:4px; }
-  @media screen and (max-width:480px){
-    .container { margin:100px 10px 20px; width:auto; }
-    #chatBox { height:150px; }
-  }
+body { margin:0; font-family: Arial, sans-serif; background:#FFE4EC; }
+header { background:#FF4081; color:white; padding:10px; text-align:center; font-size:18px; font-weight:bold; position:fixed; width:100%; top:0; z-index:100; }
+.hidden { display:none; }
+.container { padding:20px; max-width:400px; margin:80px auto 20px; background:white; border-radius:5px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+input, select { width:100%; padding:10px; margin:8px 0; font-size:14px; box-sizing:border-box; }
+button { width:100%; padding:10px; margin:8px 0; background:#FF4081; color:white; border:none; cursor:pointer; font-size:14px; border-radius:4px; }
+footer { background:#FFE4EC; text-align:center; padding:5px; font-size:12px; border-top:1px solid #C2185B; position:fixed; bottom:0; width:100%; }
+nav { display:flex; justify-content:space-around; background:#fff; border-top:1px solid #C2185B; position:fixed; bottom:30px; width:100%; }
+nav button { flex:1; padding:10px; border:none; background:none; font-size:14px; cursor:pointer; color:#FF4081; }
+nav button.active { color:#C2185B; font-weight:bold; }
+.tab { display:none; padding:10px; margin-top:10px; }
+.tab.active { display:block; }
+#chatBox { border:1px solid #C2185B; padding:10px; height:200px; overflow-y:auto; background:#FFFFFF; border-radius:5px; }
+#messageInput { width:70%; padding:5px; border:1px solid #C2185B; border-radius:4px; }
+#sendBtn { padding:6px 10px; background:#FF4081; color:white; border:none; cursor:pointer; border-radius:4px; }
+.statusItem { border-bottom:1px solid #F8BBD0; padding:8px; cursor:pointer; }
+.statusItem:hover { background:#FFD1E5; }
+.settingsForm { display:flex; flex-direction:column; gap:10px; }
+.settingsForm input, .settingsForm select { padding:8px; font-size:14px; border:1px solid #FF4081; border-radius:4px; }
+.settingsForm button { padding:10px; background:#FF4081; color:white; border:none; cursor:pointer; border-radius:4px; }
+@media screen and (max-width:480px){
+  .container { margin:100px 10px 20px; width:auto; }
+  #chatBox { height:150px; }
+}
 </style>
 </head>
 <body>
 
 <header>Campus Dating</header>
 
-<!-- LOGIN / REGISTER / FORGOT -->
+<!-- AUTH -->
 <div id="authContainer" class="container">
   <div id="loginForm">
     <h3>Login</h3>
@@ -63,6 +63,7 @@
 <!-- MAIN APP -->
 <div id="appContainer" class="hidden container">
   <div id="content">
+    <!-- Chats -->
     <div id="chatsTab" class="tab active">
       <h3>Chats</h3>
       <div id="chatBox"></div>
@@ -70,6 +71,7 @@
       <button id="sendBtn">Send</button>
     </div>
 
+    <!-- Status -->
     <div id="statusTab" class="tab">
       <h3>Status</h3>
       <input type="file" id="statusFile" accept="image/*,video/*" />
@@ -78,14 +80,16 @@
       <div id="statusFeed"></div>
     </div>
 
+    <!-- Groups -->
     <div id="groupsTab" class="tab">
       <h3>Groups</h3>
       <input type="text" id="groupName" placeholder="Group Name" />
-      <input type="text" id="groupMembers" placeholder="Add members (comma-separated)" />
+      <div id="contactsList"></div>
       <button onclick="createGroup()">Create Group</button>
       <div id="groupList"></div>
     </div>
 
+    <!-- Settings -->
     <div id="settingsTab" class="tab">
       <h3>Settings</h3>
       <form class="settingsForm" onsubmit="updateProfile(event)">
@@ -115,6 +119,7 @@
 <script>
 const API = "https://campus-dating-backend-10.onrender.com";
 let currentUser = null;
+let contacts = [];
 
 // Show/hide forms
 function showLogin() { document.getElementById('loginForm').classList.remove('hidden'); document.getElementById('registerForm').classList.add('hidden'); document.getElementById('forgotForm').classList.add('hidden'); }
@@ -127,7 +132,7 @@ async function login() {
   const username = document.getElementById('loginUsername').value;
   const password = document.getElementById('loginPassword').value;
   const res = await fetch(`${API}/auth/login`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ username,password })});
-  if(res.ok) { const data=await res.json(); currentUser = username; localStorage.setItem('token', data.token); document.getElementById('authContainer').classList.add('hidden'); document.getElementById('appContainer').classList.remove('hidden'); loadStatus(); loadGroups(); } else alert('Login failed'); 
+  if(res.ok) { const data=await res.json(); currentUser = username; localStorage.setItem('token', data.token); document.getElementById('authContainer').classList.add('hidden'); document.getElementById('appContainer').classList.remove('hidden'); loadStatus(); loadGroups(); loadContactsForGroups(); } else alert('Login failed'); 
 }
 
 async function register() {
@@ -150,36 +155,19 @@ async function forgotPassword() {
 document.getElementById("sendBtn").onclick = async () => {
   const input = document.getElementById("messageInput");
   if(!input.value) return;
-
   const msg = { sender: currentUser, receiver: "demoUser2", text: input.value, isGroup:false };
-  const res = await fetch(`${API}/api/messages`, { 
-    method:'POST', 
-    headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, 
-    body:JSON.stringify(msg) 
-  });
-  const data = await res.json(); 
-  renderMessage(data);
-  input.value="";
+  const res = await fetch(`${API}/api/messages`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify(msg) });
+  const data = await res.json(); renderMessage(data); input.value="";
 };
 
-// Render message with delete button for both sender and receiver
+// Render message with avatar + delete
 function renderMessage(msg) {
-  const div = document.createElement("div");
-  div.textContent = msg.text;
-  div.dataset.id = msg._id;
-
-  const delBtn = document.createElement("button");
-  delBtn.textContent = "🗑️";
-  delBtn.style.marginLeft = "5px";
-  delBtn.onclick = async () => {
-    if(confirm("Delete this message?")) {
-      await fetch(`${API}/api/message/${msg._id}/${currentUser}`, { method:"DELETE", headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-      div.remove();
-    }
-  };
-  div.appendChild(delBtn);
-
-  document.getElementById("chatBox").appendChild(div);
+  const div = document.createElement("div"); div.style.display="flex"; div.style.alignItems="center"; div.style.marginBottom="5px";
+  const avatar = document.createElement("img"); avatar.src = msg.senderAvatar||"default.png"; avatar.style.width="30px"; avatar.style.height="30px"; avatar.style.borderRadius="50%"; avatar.style.marginRight="5px";
+  const textDiv = document.createElement("div"); textDiv.textContent=msg.text;
+  const delBtn = document.createElement("button"); delBtn.textContent="🗑️"; delBtn.style.marginLeft="5px";
+  delBtn.onclick = async()=>{ if(confirm("Delete this message?")){ await fetch(`${API}/api/message/${msg._id}/${currentUser}`, { method:"DELETE", headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } }); div.remove(); } };
+  div.appendChild(avatar); div.appendChild(textDiv); div.appendChild(delBtn); document.getElementById("chatBox").appendChild(div);
 }
 
 // === Status ===
@@ -192,31 +180,55 @@ async function uploadStatus() {
 async function loadStatus() {
   const res = await fetch(`${API}/status/feed`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
   const data = await res.json(); const feed = document.getElementById('statusFeed'); feed.innerHTML='';
-  data.forEach(st=>{ const div=document.createElement('div'); div.className='statusItem'; div.textContent=`${st.user}: ${st.text||''}`; if(st.fileUrl){ const img=document.createElement('img'); img.src=st.fileUrl; img.style.maxWidth='100px'; img.style.display='block'; div.appendChild(img); } feed.appendChild(div); });
+  data.forEach(st => {
+    const div = document.createElement('div'); div.className='statusItem';
+    div.innerHTML = `<strong>${st.user}</strong>: ${st.text||''}`;
+    if(st.fileUrl){
+      const ext = st.fileUrl.split('.').pop().toLowerCase();
+      if(['jpg','jpeg','png','gif'].includes(ext)){ const img=document.createElement('img'); img.src=st.fileUrl; img.style.maxWidth='100px'; img.style.display='block'; div.appendChild(img); }
+      else if(['mp4','webm'].includes(ext)){ const vid=document.createElement('video'); vid.src=st.fileUrl; vid.controls=true; vid.style.maxWidth='150px'; div.appendChild(vid); }
+    }
+    feed.appendChild(div);
+  });
 }
 
-// === Groups ===
+// === Groups & contacts ===
+async function loadContactsForGroups() {
+  const res = await fetch(`${API}/api/contacts/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
+  contacts = await res.json();
+  const div = document.getElementById('contactsList'); div.innerHTML='';
+  contacts.forEach(contact => {
+    const checkbox = document.createElement('input'); checkbox.type='checkbox'; checkbox.value=contact.username; checkbox.id=`c_${contact.username}`;
+    const label = document.createElement('label'); label.htmlFor=`c_${contact.username}`; label.textContent=contact.username;
+    const wrapper=document.createElement('div'); wrapper.appendChild(checkbox); wrapper.appendChild(label); div.appendChild(wrapper);
+  });
+}
+
 async function createGroup() {
-  const name = document.getElementById('groupName').value;
-  const members = document.getElementById('groupMembers').value.split(',').map(s=>s.trim());
-  const res = await fetch(`${API}/api/groups/create`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify({ name,members }) });
+  const groupName = document.getElementById('groupName').value;
+  const selectedContacts = contacts.filter(c=>document.getElementById(`c_${c.username}`).checked).map(c=>c.username);
+  if(!groupName) return alert("Enter group name");
+  const res = await fetch(`${API}/api/groups/create`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify({ name:groupName, members:selectedContacts }) });
   if(res.ok) { alert('Group created'); loadGroups(); }
 }
 async function loadGroups() {
   const res = await fetch(`${API}/api/groups/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-  const data = await res.json(); const list=document.getElementById('groupList'); list.innerHTML='';
-  data.forEach(g=>{ const div=document.createElement('div'); div.textContent=g.name; list.appendChild(div); });
+  const groups = await res.json(); const div = document.getElementById('groupList'); div.innerHTML='';
+  groups.forEach(g=>{ const d=document.createElement('div'); d.textContent=g.name; div.appendChild(d); });
 }
 
-// === Settings ===
+// === Profile update ===
 async function updateProfile(e) {
   e.preventDefault();
-  const formData = new FormData();
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
+  const avatar = document.getElementById('profilePic').files[0];
   const privacy = document.getElementById('privacy').value;
-  const pic = document.getElementById('profilePic').files[0];
-  if(username) formData.append('username', username); if(password) formData.append('password', password); if(pic) formData.append('avatar', pic); formData.append('privacy', privacy);
+  const formData = new FormData();
+  if(username) formData.append('username', username);
+  if(password) formData.append('password', password);
+  if(avatar) formData.append('avatar', avatar);
+  if(privacy) formData.append('privacy', privacy);
   const res = await fetch(`${API}/user/${currentUser}/profile`, { method:'PUT', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
   if(res.ok) alert('Profile updated');
 }
