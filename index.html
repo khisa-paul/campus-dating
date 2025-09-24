@@ -41,22 +41,32 @@ nav button.active { color:#C2185B; font-weight:bold; }
 <div id="authContainer" class="container">
   <div id="loginForm">
     <h3>Login</h3>
-    <input type="text" id="loginUsername" placeholder="Username">
+    <input type="text" id="loginPhone" placeholder="+254712345678">
     <input type="password" id="loginPassword" placeholder="Password">
     <button onclick="login()">Login</button>
     <p style="text-align:center"><a href="#" onclick="showRegister()">Register</a> | <a href="#" onclick="showForgot()">Forgot Password?</a></p>
   </div>
+
   <div id="registerForm" class="hidden">
     <h3>Register</h3>
-    <input type="text" id="regUsername" placeholder="Username">
+    <label for="countryCode">Country Code</label>
+    <select id="countryCode">
+      <option value="+254">🇰🇪 Kenya (+254)</option>
+      <option value="+256">🇺🇬 Uganda (+256)</option>
+      <option value="+255">🇹🇿 Tanzania (+255)</option>
+      <option value="+1">🇺🇸 USA (+1)</option>
+      <option value="+44">🇬🇧 UK (+44)</option>
+    </select>
+    <input type="text" id="regPhone" placeholder="Phone number (without code)" />
     <input type="password" id="regPassword" placeholder="Password">
     <input type="file" id="regAvatar" accept="image/*">
     <button onclick="register()">Register</button>
     <p style="text-align:center"><a href="#" onclick="showLogin()">Back to Login</a></p>
   </div>
+
   <div id="forgotForm" class="hidden">
     <h3>Forgot Password</h3>
-    <input type="text" id="forgotUsername" placeholder="Username">
+    <input type="text" id="forgotPhone" placeholder="Enter your phone number">
     <button onclick="forgotPassword()">Reset Password</button>
     <p style="text-align:center"><a href="#" onclick="showLogin()">Back to Login</a></p>
   </div>
@@ -116,164 +126,68 @@ nav button.active { color:#C2185B; font-weight:bold; }
     <button onclick="showTab('settingsTab')">Settings</button>
   </nav>
 </div>
+
 <footer>App by: PAUL MAKOKHA</footer>
+
 <script>
- const API = "https://campus-dating-backend-18.onrender.com";
+const API = "https://campus-dating-backend-18.onrender.com";
 let currentUser = null;
 let contacts = [];
 let currentChat = null;
 let chatInterval = null;
-// Show/hide forms
+
+// UI Switches
 function showLogin() { document.getElementById('loginForm').classList.remove('hidden'); document.getElementById('registerForm').classList.add('hidden'); document.getElementById('forgotForm').classList.add('hidden'); }
 function showRegister() { document.getElementById('loginForm').classList.add('hidden'); document.getElementById('registerForm').classList.remove('hidden'); document.getElementById('forgotForm').classList.add('hidden'); }
 function showForgot() { document.getElementById('loginForm').classList.add('hidden'); document.getElementById('registerForm').classList.add('hidden'); document.getElementById('forgotForm').classList.remove('hidden'); }
 function showTab(tabId) { document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); document.getElementById(tabId).classList.add('active'); document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active')); event.target.classList.add('active'); }
 
-// Auth functions
-async function login() {
-  const username = document.getElementById('loginUsername').value;
-  const password = document.getElementById('loginPassword').value;
-  const res = await fetch(`${API}/auth/login`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ username,password })});
-  if(res.ok) { 
-    const data=await res.json(); 
-    currentUser = username; 
-    localStorage.setItem('token', data.token); 
-    document.getElementById('authContainer').classList.add('hidden'); 
-    document.getElementById('appContainer').classList.remove('hidden'); 
-    loadContactsForGroups(); 
-    loadGroups(); 
-    loadStatus();
-  } else alert('Login failed'); 
-}
-
+// Register
 async function register() {
-  const username = document.getElementById('regUsername').value;
+  const countryCode = document.getElementById('countryCode').value;
+  const phone = document.getElementById('regPhone').value;
   const password = document.getElementById('regPassword').value;
   const avatar = document.getElementById('regAvatar').files[0];
+  const fullPhone = countryCode + phone;
+
   const formData = new FormData();
-  formData.append('username', username); formData.append('password', password);
-  if(avatar) formData.append('avatar', avatar);
-  const res = await fetch(`${API}/auth/register`, { method:'POST', body:formData });
-  if(res.ok) { alert('Registered successfully'); showLogin(); } else alert('Registration failed');
+  formData.append('phone', fullPhone);
+  formData.append('password', password);
+  if (avatar) formData.append('avatar', avatar);
+
+  const res = await fetch(`${API}/auth/register`, { method: 'POST', body: formData });
+  if (res.ok) { alert('Registered successfully'); showLogin(); }
+  else alert('Registration failed');
 }
 
-async function forgotPassword() {
-  const username = document.getElementById('forgotUsername').value;
-  alert('Forgot password functionality will connect to backend API');
-}
+// Login
+async function login() {
+  const phone = document.getElementById('loginPhone').value;
+  const password = document.getElementById('loginPassword').value;
 
-// Load contacts for chats
-async function loadContactsForGroups() {
-  const res = await fetch(`${API}/api/contacts/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-  contacts = await res.json();
-  const contactsDiv = document.getElementById('contactsList');
-  contactsDiv.innerHTML=''; contacts.forEach(c=>{ const cb=document.createElement('input'); cb.type='checkbox'; cb.value=c.username; cb.id=`c_${c.username}`; const lbl=document.createElement('label'); lbl.htmlFor=`c_${c.username}`; lbl.textContent=c.username; const wrap=document.createElement('div'); wrap.appendChild(cb); wrap.appendChild(lbl); contactsDiv.appendChild(wrap); });
-
-  // Populate chat select
-  const chatSelect = document.getElementById('chatReceiver');
-  chatSelect.innerHTML='<option value="">Select Contact</option>';
-  contacts.forEach(c=>{ const opt=document.createElement('option'); opt.value=c.username; opt.textContent=c.username; chatSelect.appendChild(opt); });
-}
-
-// Chats
-document.getElementById('chatReceiver').onchange = async function() {
-  currentChat = this.value;
-  await loadChatMessages();
-  if(chatInterval) clearInterval(chatInterval);
-  chatInterval = setInterval(loadChatMessages, 3000);
-};
-
-async function loadChatMessages() {
-  if(!currentChat) return;
-  try {
-    const res = await fetch(`${API}/api/messages/${currentUser}/${currentChat}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-    if(!res.ok) return;
-    const messages = await res.json();
-    const chatBox = document.getElementById('chatBox');
-    chatBox.innerHTML='';
-    messages.forEach(msg=>renderMessage(msg));
-    chatBox.scrollTop = chatBox.scrollHeight;
-  } catch(err){ console.error(err); }
-}
-
-document.getElementById("sendBtn").onclick = async () => {
-  const input = document.getElementById("messageInput");
-  if(!input.value || !currentChat) return alert("Select contact and type message");
-  const msg = { sender: currentUser, receiver: currentChat, text: input.value, isGroup:false };
-  try {
-    const res = await fetch(`${API}/api/messages`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify(msg) });
-    const data = await res.json(); input.value='';
-    await loadChatMessages();
-  } catch(err){ alert('Cannot send message'); console.error(err); }
-};
-
-function renderMessage(msg) {
-  const div = document.createElement("div"); div.style.display="flex"; div.style.alignItems="center"; div.style.marginBottom="5px";
-  const avatar = document.createElement("img"); avatar.src = msg.senderAvatar||"default.png"; avatar.style.width="30px"; avatar.style.height="30px"; avatar.style.borderRadius="50%"; avatar.style.marginRight="5px";
-  const textDiv = document.createElement("div"); textDiv.textContent=msg.text;
-  const delBtn = document.createElement("button"); delBtn.textContent="🗑️"; delBtn.style.marginLeft="5px";
-  delBtn.onclick = async()=>{ if(confirm("Delete this message?")){ await fetch(`${API}/api/message/${msg._id}/${currentUser}`, { method:"DELETE", headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } }); div.remove(); } };
-  div.appendChild(avatar); div.appendChild(textDiv); div.appendChild(delBtn); document.getElementById("chatBox").appendChild(div);
-}
-
-// Status
-async function uploadStatus() {
-  const fileInput = document.getElementById('statusFile'); const textInput = document.getElementById('statusText');
-  const formData = new FormData(); if(fileInput.files[0]) formData.append('file', fileInput.files[0]); if(textInput.value) formData.append('text', textInput.value);
-  const res = await fetch(`${API}/status`, { method:'POST', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
-  if(res.ok) { alert('Status uploaded'); loadStatus(); }
-}
-
-async function loadStatus() {
-  const res = await fetch(`${API}/status/feed`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-  const data = await res.json(); const feed = document.getElementById('statusFeed'); feed.innerHTML='';
-  data.forEach(st => {
-    const div = document.createElement('div'); div.className='statusItem';
-    div.innerHTML = `<strong>${st.user}</strong>: ${st.text||''}`;
-    if(st.fileUrl){
-      const ext = st.fileUrl.split('.').pop().toLowerCase();
-      if(['jpg','jpeg','png','gif'].includes(ext)){ const img=document.createElement('img'); img.src=st.fileUrl; img.style.maxWidth='100px'; img.style.display='block'; div.appendChild(img); }
-      else if(['mp4','webm'].includes(ext)){ const vid=document.createElement('video'); vid.src=st.fileUrl; vid.controls=true; vid.style.maxWidth='150px'; div.appendChild(vid); }
-    }
-    feed.appendChild(div);
+  const res = await fetch(`${API}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json' },
+    body: JSON.stringify({ phone, password })
   });
+
+  if (res.ok) {
+    const data = await res.json();
+    currentUser = phone;
+    localStorage.setItem('token', data.token);
+    document.getElementById('authContainer').classList.add('hidden');
+    document.getElementById('appContainer').classList.remove('hidden');
+    loadContactsForGroups();
+    loadGroups();
+    loadStatus();
+  } else alert('Login failed');
 }
 
-// Groups
-async function createGroup() {
-  const groupName = document.getElementById('groupName').value;
-  const selectedContacts = contacts.filter(c=>document.getElementById(`c_${c.username}`).checked).map(c=>c.username);
-  if(!groupName) return alert("Enter group name");
-  const res = await fetch(`${API}/api/groups/create`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body:JSON.stringify({ name:groupName, members:selectedContacts }) });
-  if(res.ok) { alert('Group created'); loadGroups(); }
-}
-
-async function loadGroups() {
-  const res = await fetch(`${API}/api/groups/${currentUser}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-  const groups = await res.json(); const div = document.getElementById('groupList'); div.innerHTML='';
-  groups.forEach(g=>{ const d=document.createElement('div'); d.textContent=g.name; div.appendChild(d); });
-}
-
-// Profile update
-async function updateProfile(e) {
-  e.preventDefault();
-  const username = document.getElementById('username').value;
-  const password = document.getElementById('password').value;
-  const avatar = document.getElementById('profilePic').files[0];
-  const privacy = document.getElementById('privacy').value;
-  const formData = new FormData();
-  if(username) formData.append('username', username);
-  if(password) formData.append('password', password);
-  if(avatar) formData.append('avatar', avatar);
-  if(privacy) formData.append('privacy', privacy);
-  const res = await fetch(`${API}/user/${currentUser}/profile`, { method:'PUT', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body:formData });
-  if(res.ok) alert('Profile updated');
+// Forgot Password
+async function forgotPassword() {
+  const phone = document.getElementById('forgotPhone').value;
+  alert('Reset link/SMS to ' + phone);
 }
 </script>
-
 </body>
 </html>
-
-
-
-
