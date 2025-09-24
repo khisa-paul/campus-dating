@@ -1,485 +1,193 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Campus Dating</title>
-<style>
-  :root{
-    --pink:#FF4081;
-    --pink-dark:#C2185B;
-    --bg:#FFE4EC;
-  }
-  body{margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:#222}
-  header{background:var(--pink);color:#fff;padding:12px 16px;position:fixed;top:0;width:100%;z-index:50;font-weight:700;text-align:center}
-  .wrap{max-width:980px;margin:76px auto 20px;padding:12px;display:grid;grid-template-columns:320px 1fr;gap:12px}
-  .card{background:#fff;border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
-  .sidebar{height:76vh;overflow:auto}
-  .main{height:76vh;display:flex;flex-direction:column}
-  .section-title{font-weight:700;color:var(--pink-dark);margin:6px 0}
-  input,select,textarea,button{font-family:inherit}
-  input,select,textarea{width:100%;padding:10px;margin:6px 0;border-radius:8px;border:1px solid #eee;box-sizing:border-box}
-  button{background:var(--pink);color:#fff;border:none;padding:10px;border-radius:8px;cursor:pointer}
-  .contact{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;cursor:pointer}
-  .contact:hover{background:#fff0f5}
-  .avatar{width:44px;height:44px;border-radius:50%;object-fit:cover;background:#f2f2f2}
-  #chatBox{flex:1;overflow:auto;padding:12px;border-radius:8px;border:1px solid #f0f0f0;background:#fff}
-  .msg{display:flex;gap:8px;margin:8px 0;align-items:flex-end}
-  .msg.me{justify-content:flex-end}
-  .bubble{max-width:60%;padding:8px 12px;border-radius:14px;background:#fff;border:1px solid #f0f0f0}
-  .bubble.me{background:var(--pink);color:#fff;border:none}
-  .controls{display:flex;gap:8px;margin-top:8px;align-items:center}
-  .emoji-picker{display:flex;gap:6px;flex-wrap:wrap;padding:6px;border:1px solid #f0f0f0;border-radius:8px;background:#fff}
-  .small{font-size:12px;color:#666}
-  .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
-  .group-list{max-height:120px;overflow:auto}
-  .status-item{padding:6px;border-bottom:1px solid #f7d6e1}
-  @media (max-width:900px){.wrap{grid-template-columns:1fr;}}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campus Dating App</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f5f5f5; }
+    header { background: #004080; color: #fff; padding: 10px; text-align: center; }
+    main { padding: 10px; }
+    .hidden { display: none; }
+    .chat-list, .messages { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; max-height: 300px; overflow-y: auto; background: #fff; }
+    .message { margin-bottom: 5px; padding: 5px; border-radius: 5px; }
+    .message.self { background: #DCF8C6; text-align: right; }
+    .message.other { background: #fff; text-align: left; }
+    .status-feed { border: 1px solid #ccc; padding: 10px; margin-top: 10px; max-height: 200px; overflow-y: auto; background: #fff; }
+    input, select, button { padding: 5px; margin: 5px 0; }
+  </style>
 </head>
 <body>
-<header>Campus Dating — App by PAUL MAKOKHA</header>
+  <header>
+    <h1>Campus Dating</h1>
+  </header>
+  <main>
+    <section id="auth-section">
+      <h2>Register / Login</h2>
+      <input type="text" id="countryCode" placeholder="Country code e.g +254">
+      <input type="text" id="phone" placeholder="Phone number">
+      <input type="password" id="password" placeholder="Password">
+      <button id="registerBtn">Register</button>
+      <button id="loginBtn">Login</button>
+      <div id="auth-msg"></div>
+    </section>
 
-<div class="wrap">
-  <!-- LEFT: Authentication / Contacts / Groups / Status -->
-  <div class="card sidebar">
-    <!-- AUTH -->
-    <div id="authArea">
-      <div id="loginBox">
-        <h3 class="section-title">Login</h3>
-        <label class="small">Country</label>
-        <select id="loginCountry">
-          <option value="+254">🇰🇪 +254</option>
-          <option value="+1">🇺🇸 +1</option>
-          <option value="+44">🇬🇧 +44</option>
-          <option value="+91">🇮🇳 +91</option>
-        </select>
-        <input id="loginPhone" placeholder="Phone (without country code)" />
-        <input id="loginPassword" type="password" placeholder="Password" />
-        <button id="loginBtn" onclick="login()">Login</button>
-        <p class="small">No account? <a href="#" onclick="showRegister()">Register</a></p>
-      </div>
+    <section id="app-section" class="hidden">
+      <h2>Welcome, <span id="userPhone"></span></h2>
+      <h3>Sync Contacts</h3>
+      <textarea id="contactsInput" placeholder="Enter phone numbers separated by commas"></textarea>
+      <button id="syncContactsBtn">Sync</button>
+      <div id="contactsList" class="chat-list"></div>
 
-      <div id="registerBox" style="display:none">
-        <h3 class="section-title">Register</h3>
-        <label class="small">Country</label>
-        <select id="regCountry">
-          <option value="+254">🇰🇪 +254</option>
-          <option value="+1">🇺🇸 +1</option>
-          <option value="+44">🇬🇧 +44</option>
-          <option value="+91">🇮🇳 +91</option>
-        </select>
-        <input id="regPhone" placeholder="Phone (without country code)" />
-        <input id="regName" placeholder="Display name (optional)" />
-        <input id="regPassword" type="password" placeholder="Password" />
-        <input id="regAvatar" type="file" accept="image/*" />
-        <button onclick="register()">Register</button>
-        <p class="small"><a href="#" onclick="showLogin()">Back to Login</a></p>
-      </div>
-    </div>
+      <h3>Chat</h3>
+      <select id="chatWith"></select><br>
+      <div id="messages" class="messages"></div>
+      <input type="text" id="messageInput" placeholder="Type a message">
+      <button id="sendBtn">Send</button>
 
-    <hr />
+      <h3>Status Feed</h3>
+      <textarea id="statusInput" placeholder="Post a status"></textarea>
+      <button id="postStatusBtn">Post Status</button>
+      <div id="statusFeed" class="status-feed"></div>
+    </section>
+  </main>
 
-    <div id="afterAuth" style="display:none">
-      <div class="topbar">
-        <div>
-          <img id="myAvatar" class="avatar" src="" alt="avatar" />
-        </div>
-        <div style="text-align:right">
-          <div id="myPhone" class="small"></div>
-          <div><button onclick="logout()">Logout</button></div>
-        </div>
-      </div>
+  <script>
+    const API = 'https://campus-dating-backend-25.onrender.com';
+    let token = '';
+    let currentUser = '';
 
-      <h4 class="section-title">Contacts</h4>
-      <div>
-        <input id="contactInput" placeholder="Add phone (with country code) and name e.g. +254712345678|Paul" />
-        <div style="display:flex;gap:6px">
-          <button onclick="addLocalContact()">Add</button>
-          <button onclick="syncLocalContacts()">Sync (check registered)</button>
-        </div>
-        <small class="small">Add comma-separated or one-per-line entries. Format: <code>+254712345678|Paul</code></small>
-      </div>
+    const authSection = document.getElementById('auth-section');
+    const appSection = document.getElementById('app-section');
+    const userPhoneSpan = document.getElementById('userPhone');
+    const authMsg = document.getElementById('auth-msg');
+    const contactsList = document.getElementById('contactsList');
+    const chatWithSelect = document.getElementById('chatWith');
+    const messagesDiv = document.getElementById('messages');
+    const statusFeedDiv = document.getElementById('statusFeed');
 
-      <div id="contactsList" style="margin-top:10px"></div>
+    // --- Register ---
+    document.getElementById('registerBtn').onclick = async () => {
+      const phone = document.getElementById('phone').value.trim();
+      const countryCode = document.getElementById('countryCode').value.trim();
+      const password = document.getElementById('password').value.trim();
+      if(!phone || !password) { authMsg.innerText='Enter phone & password'; return; }
 
-      <hr />
-      <h4 class="section-title">Groups</h4>
-      <input id="groupName" placeholder="Group name" />
-      <div id="contactsCheckboxes"></div>
-      <button onclick="createGroup()">Create Group</button>
-      <div id="groupList" class="group-list" style="margin-top:8px"></div>
+      const res = await fetch(API+'/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: countryCode+phone, password })
+      });
+      const data = await res.json();
+      authMsg.innerText = data.message || data.error;
+    }
 
-      <hr />
-      <h4 class="section-title">Status</h4>
-      <input id="statusFile" type="file" accept="image/*,video/*" />
-      <input id="statusText" placeholder="Status text (optional)" />
-      <button onclick="uploadStatus()">Upload Status</button>
-      <div id="statusFeed" style="margin-top:8px"></div>
+    // --- Login ---
+    document.getElementById('loginBtn').onclick = async () => {
+      const phone = document.getElementById('phone').value.trim();
+      const countryCode = document.getElementById('countryCode').value.trim();
+      const password = document.getElementById('password').value.trim();
+      if(!phone || !password) { authMsg.innerText='Enter phone & password'; return; }
 
-      <hr />
-      <h4 class="section-title">Settings</h4>
-      <input id="newName" placeholder="Change display name" />
-      <input id="newAvatar" type="file" accept="image/*" />
-      <input id="newPass" type="password" placeholder="New password (leave blank to keep)" />
-      <select id="privacy">
-        <option value="everyone">Everyone</option>
-        <option value="contacts">My contacts</option>
-        <option value="nobody">Nobody</option>
-      </select>
-      <button onclick="updateProfile()">Save settings</button>
-    </div>
-  </div>
+      const res = await fetch(API+'/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: countryCode+phone, password })
+      });
+      const data = await res.json();
+      if(data.token){
+        token = data.token;
+        currentUser = data.phone;
+        userPhoneSpan.innerText = currentUser;
+        authSection.classList.add('hidden');
+        appSection.classList.remove('hidden');
+      } else {
+        authMsg.innerText = data.error;
+      }
+    }
 
-  <!-- RIGHT: Chat area -->
-  <div class="card main">
-    <div class="topbar">
-      <div>
-        <strong id="chatTitle">Select a contact to start</strong>
-        <div class="small" id="chatSubtitle"></div>
-      </div>
-      <div>
-        <small class="small">Connected: <span id="connStatus">no</span></small>
-      </div>
-    </div>
+    // --- Sync contacts ---
+    document.getElementById('syncContactsBtn').onclick = async () => {
+      const raw = document.getElementById('contactsInput').value.trim();
+      if(!raw) return;
+      const contacts = raw.split(',').map(s=>s.trim());
+      const res = await fetch(API+'/api/contacts/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+token },
+        body: JSON.stringify({ contacts })
+      });
+      const data = await res.json();
+      contactsList.innerHTML = '';
+      chatWithSelect.innerHTML = '';
+      data.registered.forEach(u=>{
+        const div = document.createElement('div');
+        div.innerText = u.username || u.phone;
+        contactsList.appendChild(div);
+        const opt = document.createElement('option');
+        opt.value = u.phone;
+        opt.innerText = u.username || u.phone;
+        chatWithSelect.appendChild(opt);
+      });
+    }
 
-    <div id="chatBox"></div>
+    // --- Send message ---
+    document.getElementById('sendBtn').onclick = async () => {
+      const receiver = chatWithSelect.value;
+      const text = document.getElementById('messageInput').value.trim();
+      if(!receiver || !text) return;
+      const res = await fetch(API+'/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+token },
+        body: JSON.stringify({ sender: currentUser, receiver, text })
+      });
+      const data = await res.json();
+      loadMessages(receiver);
+      document.getElementById('messageInput').value = '';
+    }
 
-    <div style="margin-top:8px">
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="chatReceiverSelect"><option value="">-- choose contact --</option></select>
-        <input id="messageInput" placeholder="Type a message..." style="flex:1" />
-        <input id="attachFile" type="file" style="display:none" />
-        <button onclick="document.getElementById('attachFile').click()">📎</button>
-        <button id="sendBtn">Send</button>
-      </div>
+    // --- Load messages ---
+    async function loadMessages(other){
+      if(!other) return;
+      const res = await fetch(API+'/api/messages/'+currentUser+'/'+encodeURIComponent(other), {
+        headers: { 'Authorization': 'Bearer '+token }
+      });
+      const data = await res.json();
+      messagesDiv.innerHTML = '';
+      data.forEach(m=>{
+        const div = document.createElement('div');
+        div.className = 'message '+(m.sender===currentUser?'self':'other');
+        div.innerText = (m.sender===currentUser?'You: ':'') + m.text;
+        messagesDiv.appendChild(div);
+      });
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
 
-      <div class="emoji-picker" id="emojiPicker" style="margin-top:8px">
-        <!-- simple emoji list -->
-        🙂 😂 😍 👍 🙏 🎉 💬 😎 🔥 ❤️
-      </div>
-    </div>
-  </div>
-</div>
+    chatWithSelect.onchange = () => loadMessages(chatWithSelect.value);
 
-<!-- socket.io client -->
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    // --- Status feed ---
+    document.getElementById('postStatusBtn').onclick = async () => {
+      const text = document.getElementById('statusInput').value.trim();
+      if(!text) return;
+      await fetch(API+'/status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer '+token },
+        body: JSON.stringify({ text })
+      });
+      loadStatusFeed();
+      document.getElementById('statusInput').value = '';
+    }
 
-<script>
-/* ======================
-   Config
-   ====================== */
-const API = "https://campus-dating-backend-20.onrender.com";// <<< set your backend Render URL
-let socket = null;
+    async function loadStatusFeed(){
+      const res = await fetch(API+'/status/feed', { headers: { 'Authorization': 'Bearer '+token } });
+      const data = await res.json();
+      statusFeedDiv.innerHTML = '';
+      data.forEach(s=>{
+        const div = document.createElement('div');
+        div.innerText = `${s.user}: ${s.text}`;
+        statusFeedDiv.appendChild(div);
+      });
+    }
 
-/* ======================
-   Helpers & state
-   ====================== */
-let currentUser = null;         // phone like +2547...
-let localContacts = [];         // {phone,name}
-let contactsRegistered = [];    // list from backend
-let groups = [];
-
-/* ======================
-   UI helpers
-   ====================== */
-function showRegister(){ document.getElementById('loginBox').style.display='none'; document.getElementById('registerBox').style.display='block'; }
-function showLogin(){ document.getElementById('loginBox').style.display='block'; document.getElementById('registerBox').style.display='none'; }
-function showAuthenticatedUI(){
-  document.getElementById('authArea').style.display='none';
-  document.getElementById('afterAuth').style.display='block';
-}
-function showLoginUI(){
-  document.getElementById('authArea').style.display='block';
-  document.getElementById('afterAuth').style.display='none';
-}
-
-/* ======================
-   AUTH
-   ====================== */
-async function register(){
-  const country = document.getElementById('regCountry').value;
-  const phoneRaw = document.getElementById('regPhone').value.trim();
-  const name = document.getElementById('regName').value.trim() || '';
-  const password = document.getElementById('regPassword').value;
-  const avatarFile = document.getElementById('regAvatar').files[0];
-
-  if(!phoneRaw || !password) return alert('Phone and password required');
-
-  const phone = country + phoneRaw;
-
-  const fd = new FormData();
-  fd.append('phone', phone);
-  fd.append('password', password);
-  fd.append('username', name);
-  if(avatarFile) fd.append('avatar', avatarFile);
-
-  const res = await fetch(`${API}/auth/register`, { method:'POST', body:fd });
-  const data = await res.json();
-  if(res.ok){ alert('Registered, you can login'); showLogin(); } else alert(data.error || 'Register failed');
-}
-
-async function login(){
-  const country = document.getElementById('loginCountry').value;
-  const phoneRaw = document.getElementById('loginPhone').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  if(!phoneRaw || !password) return alert('Enter phone & password');
-  const phone = country + phoneRaw;
-
-  try{
-    const res = await fetch(`${API}/auth/login`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ phone, password }) });
-    const data = await res.json();
-    if(!res.ok) return alert(data.error || 'Login failed');
-
-    // Save token + phone
-    localStorage.setItem('token', data.token);
-    currentUser = data.phone;
-    document.getElementById('myPhone').textContent = currentUser;
-    if(data.avatar) document.getElementById('myAvatar').src = API + data.avatar;
-    showAuthenticatedUI();
-    connectSocket();
-    loadContactsUI();
-    loadGroups();
-    loadStatus();
-  }catch(e){ console.error(e); alert('Login error'); }
-}
-
-function logout(){
-  localStorage.removeItem('token');
-  currentUser = null;
-  if(socket) socket.disconnect();
-  showLoginUI();
-}
-
-/* ======================
-   SOCKET.IO (real-time)
-   ====================== */
-function connectSocket(){
-  if(socket) socket.disconnect();
-  const token = localStorage.getItem('token');
-  socket = io(API, { auth: { token } });
-
-  socket.on('connect', ()=> { document.getElementById('connStatus').textContent='yes'; });
-  socket.on('disconnect', ()=> { document.getElementById('connStatus').textContent='no'; });
-
-  // incoming message
-  socket.on('message', msg => {
-    // append to chat if currentChat matches sender or receiver
-    renderMessage(msg);
-  });
-
-  socket.on('message-deleted', ({ id }) => {
-    const el = document.querySelector(`[data-msgid="${id}"]`);
-    if(el) el.remove();
-  });
-}
-
-/* ======================
-   CONTACTS (local + server)
-   ====================== */
-function addLocalContact(){
-  const raw = document.getElementById('contactInput').value.trim();
-  if(!raw) return alert('Enter contact (phone|Name). You can add many separated by comma or newline');
-  const parts = raw.split(/[,\n]+/).map(s=>s.trim()).filter(Boolean);
-  for(const p of parts){
-    let phone = p; let name = '';
-    if(p.includes('|')){ [phone,name] = p.split('|').map(x=>x.trim()); }
-    localContacts.push({ phone, name });
-  }
-  document.getElementById('contactInput').value = '';
-  renderLocalContacts();
-}
-
-function renderLocalContacts(){
-  const div = document.getElementById('contactsList'); div.innerHTML='';
-  // populate contactsSelect
-  const select = document.getElementById('chatReceiverSelect'); select.innerHTML='<option value="">-- choose contact --</option>';
-
-  localContacts.forEach(c => {
-    const d = document.createElement('div'); d.className='contact';
-    d.innerHTML = `<img class="avatar" src="${c.avatar?API+c.avatar:''}" onerror="this.src='https://via.placeholder.com/44'"/><div style="flex:1"><strong>${c.name||c.phone}</strong><div class="small">${c.phone}</div></div>`;
-    d.onclick = () => { select.value=c.phone; select.dispatchEvent(new Event('change')); };
-    div.appendChild(d);
-    // add to select
-    const opt = document.createElement('option'); opt.value = c.phone; opt.textContent = c.name || c.phone;
-    select.appendChild(opt);
-  });
-
-  // show checkboxes for group creation
-  const boxes = document.getElementById('contactsCheckboxes'); boxes.innerHTML='';
-  localContacts.forEach(c=>{
-    const id = 'chk_'+c.phone.replace(/\D/g,'');
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = `<input type="checkbox" id="${id}" value="${c.phone}"/> <label for="${id}">${c.name||c.phone}</label>`;
-    boxes.appendChild(wrapper);
-  });
-}
-
-/* send local contacts to server and mark which are registered */
-async function syncLocalContacts(){
-  const list = localContacts.map(c=>c.phone);
-  try{
-    const res = await fetch(`${API}/api/contacts/sync`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body: JSON.stringify({ contacts:list }) });
-    const data = await res.json();
-    contactsRegistered = data.registered || [];
-    alert('Sync complete. ' + contactsRegistered.length + ' registered users found.');
-    // Optionally mark registered contacts in UI
-    renderLocalContacts();
-  }catch(e){ console.error(e); alert('Sync error'); }
-}
-
-/* ======================
-   MESSAGES (REST + socket)
-   ====================== */
-document.getElementById('chatReceiverSelect').addEventListener('change', ()=>{
-  const phone = document.getElementById('chatReceiverSelect').value;
-  document.getElementById('chatTitle').textContent = phone || 'Select a contact to start';
-  document.getElementById('chatBox').innerHTML = '';
-  if(phone) loadConversation(phone);
-});
-
-async function loadConversation(otherPhone){
-  try{
-    const res = await fetch(`${API}/api/messages/${currentUser}/${encodeURIComponent(otherPhone)}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-    if(!res.ok) return;
-    const messages = await res.json();
-    document.getElementById('chatBox').innerHTML = '';
-    messages.forEach(renderMessage);
-    document.getElementById('chatBox').scrollTop = document.getElementById('chatBox').scrollHeight;
-  }catch(e){ console.error(e); }
-}
-
-function renderMessage(msg){
-  // avoid duplicate if already rendered
-  if(document.querySelector(`[data-msgid="${msg._id}"]`)) return;
-  const chatBox = document.getElementById('chatBox');
-  const wrapper = document.createElement('div');
-  wrapper.className = 'msg ' + (msg.sender === currentUser ? 'me' : '');
-  wrapper.setAttribute('data-msgid', msg._id);
-  const avatar = `<img class="avatar" src="${msg.senderAvatar?API+msg.senderAvatar:'https://via.placeholder.com/44'}" />`;
-  const bubbleClass = 'bubble ' + (msg.sender === currentUser ? 'me' : '');
-  const delBtn = `<button style="margin-left:8px" onclick="deleteMessage('${msg._id}')">🗑</button>`;
-  wrapper.innerHTML = `
-    ${msg.sender === currentUser ? '' : avatar}
-    <div class="${bubbleClass}">${msg.text || ''}${msg.fileUrl?('<div><a target="_blank" href="'+API+msg.fileUrl+'">attachment</a></div>'):''}</div>
-    ${msg.sender === currentUser ? avatar : ''}
-    ${msg.sender === currentUser ? delBtn : ''}
-  `;
-  chatBox.appendChild(wrapper);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-document.getElementById('sendBtn').addEventListener('click', async ()=>{
-  const txt = document.getElementById('messageInput').value.trim();
-  const receiver = document.getElementById('chatReceiverSelect').value;
-  if(!txt || !receiver) return alert('Select a contact and type a message');
-  const payload = { sender: currentUser, receiver, text: txt, isGroup:false };
-  // send via REST (server will also emit via socket)
-  const res = await fetch(`${API}/api/messages`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body: JSON.stringify(payload) });
-  if(res.ok){ document.getElementById('messageInput').value=''; const saved = await res.json(); renderMessage(saved); }
-  else { const err = await res.json(); alert(err.error || 'Send failed'); }
-});
-
-/* delete */
-async function deleteMessage(id){
-  if(!confirm('Delete message?')) return;
-  const res = await fetch(`${API}/api/message/${id}/${encodeURIComponent(currentUser)}`, { method:'DELETE', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-  if(res.ok){ document.querySelector(`[data-msgid="${id}"]`).remove(); }
-  else { alert('Delete failed'); }
-}
-
-/* ======================
-   STATUS
-   ====================== */
-async function uploadStatus(){
-  const file = document.getElementById('statusFile').files[0];
-  const text = document.getElementById('statusText').value;
-  const fd = new FormData();
-  if(file) fd.append('file', file);
-  if(text) fd.append('text', text);
-  const res = await fetch(`${API}/status`, { method:'POST', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body: fd });
-  if(res.ok){ alert('Status uploaded'); loadStatus(); } else alert('Status failed');
-}
-
-async function loadStatus(){
-  const res = await fetch(`${API}/status/feed`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-  const data = await res.json();
-  const feed = document.getElementById('statusFeed'); feed.innerHTML='';
-  data.forEach(s=>{
-    const div = document.createElement('div'); div.className='status-item';
-    div.innerHTML = `<strong>${s.user}</strong> ${s.text||''} ${s.fileUrl?('<div><a href="'+API+s.fileUrl+'" target="_blank">view</a></div>'):''}`;
-    feed.appendChild(div);
-  });
-}
-
-/* ======================
-   GROUPS
-   ====================== */
-async function createGroup(){
-  const name = document.getElementById('groupName').value.trim();
-  if(!name) return alert('Group name required');
-  const members = Array.from(document.querySelectorAll('#contactsCheckboxes input[type=checkbox]:checked')).map(i=>i.value);
-  const res = await fetch(`${API}/api/groups/create`, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token') }, body: JSON.stringify({ name, members }) });
-  if(res.ok){ alert('Group created'); loadGroups(); } else alert('Group failed');
-}
-
-async function loadGroups(){
-  const res = await fetch(`${API}/api/groups/${encodeURIComponent(currentUser)}`, { headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') } });
-  if(!res.ok) return;
-  groups = await res.json();
-  const gl = document.getElementById('groupList'); gl.innerHTML='';
-  groups.forEach(g=>{
-    const d = document.createElement('div');
-    d.textContent = `${g.name} (${g.members.length})`;
-    gl.appendChild(d);
-  });
-}
-
-/* ======================
-   PROFILE update
-   ====================== */
-async function updateProfile(){
-  const name = document.getElementById('newName').value;
-  const pass = document.getElementById('newPass').value;
-  const avatar = document.getElementById('newAvatar').files[0];
-  const fd = new FormData();
-  if(name) fd.append('username', name);
-  if(pass) fd.append('password', pass);
-  if(avatar) fd.append('avatar', avatar);
-  const res = await fetch(`${API}/user/${encodeURIComponent(currentUser)}/profile`, { method:'PUT', headers:{ 'Authorization':'Bearer '+localStorage.getItem('token') }, body: fd });
-  if(res.ok) alert('Profile updated'); else alert('Update failed');
-}
-
-/* ======================
-   CONTACT SYNC endpoint wrapper
-   ====================== */
-// server expects { contacts: [ "+254..." ] }, returns { registered: [..] }
-async function loadContactsUI(){
-  renderLocalContacts();
-}
-
-/* ======================
-   Storage helpers (simple) - store localContacts in localStorage
-   ====================== */
-function saveLocal(){
-  localStorage.setItem('localContacts', JSON.stringify(localContacts));
-}
-function loadLocal(){
-  try{ localContacts = JSON.parse(localStorage.getItem('localContacts')||'[]'); }catch(e){ localContacts = []; }
-  renderLocalContacts();
-}
-loadLocal();
-
-/* ======================
-   Start state if logged in
-   ====================== */
-(function init(){
-  const token = localStorage.getItem('token');
-  const phone = localStorage.getItem('phone');
-  if(token && phone){ currentUser = phone; document.getElementById('myPhone').textContent=phone; showAuthenticatedUI(); connectSocket(); loadContactsUI(); loadGroups(); loadStatus(); }
-})();
-
-</script>
+  </script>
 </body>
 </html>
-
